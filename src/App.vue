@@ -2,12 +2,17 @@
   <div class="container">
     <h1>🌸 花狼の探店挑战 🐺</h1>
 
+    <!-- 吃货签 -->
+    <FortuneBox />
+
+    <!-- 随机推荐 -->
+    <RandomPicker :restaurants="restaurants" />
+
     <!-- Tab 切换 -->
     <div class="tab-bar">
       <button :class="{ active: currentTab === 'main' }" @click="switchTab('main')">🍚 主食</button>
       <button :class="{ active: currentTab === 'snack' }" @click="switchTab('snack')">🍰 茶点</button>
-      <button :class="{ active: cu      git config --global user.name "Your Name"
-      git config --global user.email "you@example.com"rrentTab === 'all' }" @click="switchTab('all')">🌈 全部</button>
+      <button :class="{ active: currentTab === 'all' }" @click="switchTab('all')">🌈 全部</button>
     </div>
 
     <!-- 筛选栏 -->
@@ -35,6 +40,8 @@ import { ref, computed } from 'vue';
 import { restaurants } from '@/data/restaurants';
 import RestaurantCard from '@/components/RestaurantCard.vue';
 import FilterBar from '@/components/FilterBar.vue';
+import FortuneBox from '@/components/FortuneBox.vue';
+import RandomPicker from '@/components/RandomPicker.vue';
 import { useFilters } from '@/composables/useFilters';
 
 const currentTab = ref('all');
