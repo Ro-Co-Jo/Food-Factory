@@ -41,6 +41,14 @@
       @saved="modalVisible = false"
     />
   </div>
+
+  <!-- 背景特效 -->
+  <AppBackground />
+
+  <!-- BGM 按钮 -->
+  <button class="bgm-btn" :class="{ playing: isBGMPlaying }" @click="toggleBGM">
+    {{ isBGMPlaying ? '🎵' : '🔇' }}
+  </button>
 </template>
 
 <script setup>
@@ -51,20 +59,24 @@ import FilterBar from '@/components/FilterBar.vue';
 import FortuneBox from '@/components/FortuneBox.vue';
 import RandomPicker from '@/components/RandomPicker.vue';
 import EatModal from '@/components/EatModal.vue';
+import AppBackground from '@/components/AppBackground.vue';
 import { useFilters } from '@/composables/useFilters';
 import { useEatenRecords } from '@/composables/useEatenRecords';
+import { useBGM } from '@/composables/useBGM';
 
 const currentTab = ref('all');
-const { records: eatenRecords, addRecord, deleteRecord } = useEatenRecords();
+const { records: eatenRecords } = useEatenRecords();
 
 const restaurantsRef = ref(restaurants);
 const { area, subarea, cat, sort, search, filtered } = useFilters(restaurantsRef, currentTab);
-
 const filteredRestaurants = computed(() => filtered.value);
 
-// 评价弹窗相关
+// 评价弹窗
 const modalVisible = ref(false);
 const selectedRestaurant = ref(null);
+
+// BGM
+const { isPlaying: isBGMPlaying, toggle: toggleBGM } = useBGM();
 
 function switchTab(tab) {
   currentTab.value = tab;
@@ -77,7 +89,7 @@ function openEatModal(restaurant) {
 </script>
 
 <style scoped>
-.container { max-width: 600px; margin: 0 auto; padding: 20px; }
+.container { max-width: 600px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
 .tab-bar { display: flex; gap: 8px; margin-bottom: 12px; }
 button {
   padding: 10px;
@@ -91,5 +103,27 @@ button.active {
   background: #e0a458;
   color: white;
   border-color: #e0a458;
+}
+.bgm-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e0a458, #c96f6f);
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(224,164,88,0.4);
+}
+.bgm-btn.playing {
+  animation: musicPulse 2s ease-in-out infinite;
+}
+@keyframes musicPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(224,164,88,0.4); }
+  50% { box-shadow: 0 4px 28px rgba(224,164,88,0.7), 0 0 40px rgba(224,164,88,0.3); }
 }
 </style>
