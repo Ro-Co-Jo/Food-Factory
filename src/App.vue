@@ -30,7 +30,15 @@
       :key="item.area + item.name"
       :restaurant="item"
       :eaten-records="eatenRecords[item.name] || []"
-      @eat="handleEat"
+      @eat="openEatModal"
+    />
+
+    <!-- 评价弹窗 -->
+    <EatModal
+      :restaurant="selectedRestaurant"
+      :visible="modalVisible"
+      @close="modalVisible = false"
+      @saved="modalVisible = false"
     />
   </div>
 </template>
@@ -42,22 +50,29 @@ import RestaurantCard from '@/components/RestaurantCard.vue';
 import FilterBar from '@/components/FilterBar.vue';
 import FortuneBox from '@/components/FortuneBox.vue';
 import RandomPicker from '@/components/RandomPicker.vue';
+import EatModal from '@/components/EatModal.vue';
 import { useFilters } from '@/composables/useFilters';
+import { useEatenRecords } from '@/composables/useEatenRecords';
 
 const currentTab = ref('all');
-const eatenRecords = ref({});
+const { records: eatenRecords, addRecord, deleteRecord } = useEatenRecords();
 
 const restaurantsRef = ref(restaurants);
 const { area, subarea, cat, sort, search, filtered } = useFilters(restaurantsRef, currentTab);
 
 const filteredRestaurants = computed(() => filtered.value);
 
+// 评价弹窗相关
+const modalVisible = ref(false);
+const selectedRestaurant = ref(null);
+
 function switchTab(tab) {
   currentTab.value = tab;
 }
 
-function handleEat(restaurant) {
-  console.log('点击评价：', restaurant.name);
+function openEatModal(restaurant) {
+  selectedRestaurant.value = restaurant;
+  modalVisible.value = true;
 }
 </script>
 
