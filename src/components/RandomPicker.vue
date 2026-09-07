@@ -54,23 +54,43 @@ function pickRandom() {
 
 <style scoped>
 .random-box {
-  background: #fff;
-  border: 1px solid #e5e0d8;
-  border-radius: 18px;
-  padding: 16px;
-  margin-bottom: 14px;
+  background: #111827;
+  border-radius: 20px;
+  padding: 22px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
 }
 .random-btn {
-  background: linear-gradient(135deg, #e0a458, #c96f6f);
+  background: #f97316;
   border: none;
-  color: white;
-  font-size: 16px;
+  color: #fff;
+  font-size: 17px;
   font-weight: 700;
-  padding: 12px 26px;
+  padding: 14px 32px;
   border-radius: 50px;
   cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+.random-btn:hover {
+  background: #ea580c;
+  transform: scale(1.03);
+}
+.random-result {
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+.sub {
+  font-size: 13px;
+  color: #d1d5db;
+  margin-top: 4px;
+}
+.random-msg {
+  font-size: 13px;
+  color: #fbbf24;
+  margin-top: 8px;
+  min-height: 20px;
 }
 .random-result { margin-top: 12px; font-size: 19px; font-weight: 700; color: #b96d6d; }
 .sub { font-size: 13px; color: #888; font-weight: 400; margin-top: 4px; }

@@ -1,8 +1,3 @@
-/**
- * 根据餐厅分类返回对应 emoji
- * @param {Object} item - 餐厅对象
- * @returns {string}
- */
 export function getEmoji(item) {
   const cat1 = item.cat1;
   if (cat1 === '中餐') return '🥢';
