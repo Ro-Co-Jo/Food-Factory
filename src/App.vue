@@ -3,10 +3,10 @@
     <AppBackground />
 
     <div class="container">
-     <header class="header">
-       <h1 class="main-title">🌸 花狼の探店挑战 🐺</h1>
-       <p class="subtitle">花花是不是又不知道要吃什么啦~ 让小狼陪你看看吧！</p>
-    </header>
+      <header class="header">
+        <h1 class="main-title">🌸 花狼の探店挑战 🐺</h1>
+        <p class="subtitle">花花是不是又不知道要吃什么啦~ 让小狼陪你看看吧！</p>
+      </header>
 
       <!-- 随机推荐区 -->
       <section class="hero-card">
@@ -68,7 +68,7 @@
     <button class="bgm-btn" :class="{ playing: isBGMPlaying }" @click="toggleBGM">
       {{ isBGMPlaying ? '🎵' : '🔇' }}
     </button>
-    </div>
+  </div>
 </template>
 
 <script setup>
@@ -86,7 +86,6 @@ import { useBGM } from '@/composables/useBGM';
 
 const currentTab = ref('all');
 const { records: eatenRecords } = useEatenRecords();
-const { isPlaying: isBGMPlaying, toggle: toggleBGM } = useBGM();
 
 const loading = ref(false);
 const error = ref('');
@@ -140,13 +139,7 @@ function openEatModal(restaurant) {
   z-index: 1;
 }
 
-/* 标题 */
 .header {
-  text-align: center;
-  margin-bottom: 18px;
-  position: relative;
-  z-index: 2;      /* 提高层级，避免被背景遮挡 */
-  overflow: visible;
   text-align: center;
   margin-bottom: 18px;
 }
@@ -161,8 +154,6 @@ function openEatModal(restaurant) {
   color: transparent;
   margin: 0;
   padding: 4px 0;
-  word-break: keep-all;
-  white-space: normal;
 }
 .subtitle {
   font-size: 15px;
@@ -171,12 +162,10 @@ function openEatModal(restaurant) {
   letter-spacing: 0.3px;
 }
 
-/* 随机推荐区 */
 .hero-card {
   margin-bottom: 14px;
 }
 
-/* Tab 栏 */
 .tab-bar {
   display: flex;
   gap: 8px;
@@ -235,7 +224,6 @@ function openEatModal(restaurant) {
   cursor: not-allowed;
 }
 
-/* BGM 按钮 */
 .bgm-btn {
   position: fixed;
   bottom: 20px;
