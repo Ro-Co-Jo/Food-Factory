@@ -1,6 +1,6 @@
 // src/workers/bgmWorker.js
 // 花狼の探店挑战 BGM
-// A/B/C 段长音前加装饰音，D 段不加
+// 节奏：C E G F A G 空 D E 长
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -22,21 +22,6 @@ function generateBGM(sr) {
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
     C5: 523.25, D5: 587.33,
   };
-
-  /**
-   * 获取 C 大调音阶中，某音的上方二度
-   * @param {number} freq 原频率
-   * @returns {number} 上方二度频率
-   */
-  function getUpperSecond(freq) {
-    const scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33];
-    for (let i = 0; i < scale.length - 1; i++) {
-      if (Math.abs(scale[i] - freq) < 1) {
-        return scale[i + 1];
-      }
-    }
-    return freq * 1.12; // 兜底
-  }
 
   function piano(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -79,13 +64,23 @@ function generateBGM(sr) {
   }
 
   // ============ 节奏型 ============
+  // 拍位：0    1    2    3    4    5    6.5  7    8
+  // 音：  C    E    G    F    A    G    D    E    长
+  // 时值：1    1    1    1    1    1    0.5  1    3
+  //
+  // 注意：第 6 拍空 0.5 拍，D 从 6.5 开始占 0.5 拍
   const beatOffsets = [0, 1, 2, 3, 4, 5, 6.5, 7, 8];
   const durations   = [1, 1, 1, 1, 1, 1, 0.5, 1, 3];
 
+  // 每句 8 个音，最后一个音在长音位置重复一次（延续）
   const phrases = [
+    // 第一句：C E G F A G D E（长音延续 E）
     [F.C4, F.E4, F.G4, F.F4, F.A4, F.G4, F.D4, F.E4, F.E4],
+    // 第二句：C E G F A G B C5（长音延续 C5）
     [F.C4, F.E4, F.G4, F.F4, F.A4, F.G4, F.B4, F.C5, F.C5],
+    // 第三句：E F G A C5 B4 D5 G4（长音延续 G4）
     [F.E4, F.F4, F.G4, F.A4, F.C5, F.B4, F.D5, F.G4, F.G4],
+    // 第四句：C E G F E D E C4（长音延续 C4）
     [F.C4, F.E4, F.G4, F.F4, F.E4, F.D4, F.E4, F.C4, F.C4],
   ];
 
@@ -121,25 +116,7 @@ function generateBGM(sr) {
     for (let i = 0; i < 9; i++) {
       const startBeat = beatOffsets[i];
       const dur = durations[i];
-
-      // 最后一个音（长音）特殊处理
-      if (i === 8) {
-        const mainFreq = melody[i];
-
-        if (p === 3) {
-          // D 段：不加装饰音，直接长音
-          piano(phraseStart + startBeat * beat, mainFreq, dur * beat * 0.98, 0.30);
-        } else {
-          // A/B/C 段：加装饰音（上方二度快速经过）
-          const ornamentFreq = getUpperSecond(mainFreq);
-          // 装饰音：0.25 拍
-          piano(phraseStart + 8 * beat, ornamentFreq, beat * 0.25, 0.24);
-          // 主音：从 8.25 拍开始，持续 2.75 拍
-          piano(phraseStart + 8.25 * beat, mainFreq, beat * 2.75, 0.30);
-        }
-      } else {
-        piano(phraseStart + startBeat * beat, melody[i], dur * beat * 0.98, 0.30);
-      }
+      piano(phraseStart + startBeat * beat, melody[i], dur * beat * 0.98, 0.30);
     }
 
     for (let b = 0; b < 3; b++) {
