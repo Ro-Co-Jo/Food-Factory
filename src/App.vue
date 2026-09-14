@@ -65,7 +65,12 @@
     />
 
     <!-- BGM 按钮 -->
-    <button class="bgm-btn" :class="{ playing: isBGMPlaying }" @click="toggleBGM">
+    <button
+      class="bgm-btn"
+      :class="{ playing: isBGMPlaying }"
+      @pointerdown.stop
+      @click.stop="toggleBGM"
+    >
       {{ isBGMPlaying ? '🎵' : '🔇' }}
     </button>
   </div>
@@ -108,10 +113,14 @@ const filteredRestaurants = computed(() => filtered.value);
 const modalVisible = ref(false);
 const selectedRestaurant = ref(null);
 
-const { isPlaying: isBGMPlaying, toggle: toggleBGM } = useBGM();
+const { isPlaying: isBGMPlaying, toggle: toggleBGM, preload: preloadBGM, setupAutoStart } = useBGM();
 
 onMounted(() => {
   loadRestaurants();
+  // 后台预生成 BGM
+  preloadBGM();
+  // 监听用户首次交互，自动开始播放
+  setupAutoStart();
 });
 
 function switchTab(tab) {

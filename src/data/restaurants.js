@@ -12,8 +12,7 @@ export const restaurants = ref([]);
  */
 export async function loadRestaurants() {
   try {
-    const response = await fetch('http://localhost:3000/api/restaurants');
-    if (!response.ok) throw new Error('网络响应失败');
+    const response = await fetch('https://ro-co-jo-factory.onrender.com/api/restaurants');    if (!response.ok) throw new Error('网络响应失败');
     restaurants.value = await response.json();
   } catch (error) {
     console.error('加载餐厅数据失败:', error);
