@@ -1,6 +1,5 @@
 // src/workers/bgmWorker.js
 // 花狼の探店挑战 BGM
-// 节奏：C E G F A G 空 D E 长
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -63,24 +62,14 @@ function generateBGM(sr) {
     }
   }
 
-  // ============ 节奏型 ============
-  // 拍位：0    1    2    3    4    5    6.5  7    8
-  // 音：  C    E    G    F    A    G    D    E    长
-  // 时值：1    1    1    1    1    1    0.5  1    3
-  //
-  // 注意：第 6 拍空 0.5 拍，D 从 6.5 开始占 0.5 拍
+  // 节奏型
   const beatOffsets = [0, 1, 2, 3, 4, 5, 6.5, 7, 8];
   const durations   = [1, 1, 1, 1, 1, 1, 0.5, 1, 3];
 
-  // 每句 8 个音，最后一个音在长音位置重复一次（延续）
   const phrases = [
-    // 第一句：C E G F A G D E（长音延续 E）
     [F.C4, F.E4, F.G4, F.F4, F.A4, F.G4, F.D4, F.E4, F.E4],
-    // 第二句：C E G F A G B C5（长音延续 C5）
     [F.C4, F.E4, F.G4, F.F4, F.A4, F.G4, F.B4, F.C5, F.C5],
-    // 第三句：E F G A C5 B4 D5 G4（长音延续 G4）
     [F.E4, F.F4, F.G4, F.A4, F.C5, F.B4, F.D5, F.G4, F.G4],
-    // 第四句：C E G F E D E C4（长音延续 C4）
     [F.C4, F.E4, F.G4, F.F4, F.E4, F.D4, F.E4, F.C4, F.C4],
   ];
 
@@ -107,7 +96,6 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
     const phraseStart = p * 3 * barDuration;
     const melody = phrases[p];
