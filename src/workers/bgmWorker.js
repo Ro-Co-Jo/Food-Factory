@@ -1,5 +1,6 @@
 // src/workers/bgmWorker.js
-// 方案D：钢琴主旋律 + 弦乐氛围（多把大提琴 + 弦乐组 + 竖琴 + 八音盒）
+// 方案D：钢琴主旋律 + 弦乐氛围 + 多把大提琴 + 竖琴 + 八音盒
+// 弦乐组音符重叠 + 长尾衰减，消除切割感
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -25,7 +26,7 @@ function generateBGM(sr) {
 
   // ============ 音色 ============
 
-  /** 钢琴：主旋律 */
+  /** 钢琴：主旋律，支持 legato / veryLegato */
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -50,10 +51,12 @@ function generateBGM(sr) {
     }
   }
 
-  /** 弦乐组：多把弦乐叠加，柔和氛围层 */
+  /** 弦乐组：音符重叠 + 长尾衰减，形成连续暖雾 */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
+    // 实际发声时长 = 1.8 倍，与下一个和弦重叠
+    const actualDur = dur * 1.8;
+    const s1 = Math.floor((startT + actualDur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
     // 4 把弦乐轻微失谐，产生暖雾层
@@ -61,8 +64,10 @@ function generateBGM(sr) {
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.45));
-      const release = Math.min(1, (len - pos) / (sr * 0.4));
+      // 极慢起音（600ms）
+      const attack = Math.min(1, pos / (sr * 0.6));
+      // 极长尾（1000ms），自然淡出，与下个音重叠
+      const release = Math.min(1, (len - pos) / (sr * 1.0));
       const env = attack * release;
       let wave = 0;
       for (const d of detunes) {
@@ -74,7 +79,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 大提琴：温暖低音（支持多把叠加） */
+  /** 单把大提琴 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -85,7 +90,8 @@ function generateBGM(sr) {
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.25));
       const decay = Math.exp(-pos / (sr * 2.2));
-      const release = Math.min(1, (len - pos) / (sr * 0.35));
+      // 长尾：800ms
+      const release = Math.min(1, (len - pos) / (sr * 0.8));
       const f = freq * detune;
       const wave =
         Math.sin(2 * Math.PI * f * t) +
@@ -96,7 +102,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 多把大提琴叠加：低音厚实温暖 */
+  /** 3 把大提琴叠奏 */
   function celloSection(startT, freq, dur, volume) {
     cello(startT, freq, dur, volume * 0.6, 1.0);
     cello(startT, freq, dur, volume * 0.5, 1.004);
@@ -139,12 +145,14 @@ function generateBGM(sr) {
 
   // ============ 旋律 ============
   const phrases = [
+    // A
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
       [6.5, 0.5, F.D4, false], [7, 1, F.E4, false],
       [8, 3, F.E4, true],
     ],
+    // B
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
@@ -153,6 +161,7 @@ function generateBGM(sr) {
       [8.5, 1, F.G4, false],
       [9.5, 2.5, F.E4, true],
     ],
+    // C
     [
       [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
       [4, 1, F.C5, false], [5, 1, F.B4, false],
@@ -160,6 +169,7 @@ function generateBGM(sr) {
       [8, 0.5, F.F4, false], [8.5, 0.5, F.G4, false], [9, 0.5, F.F4, false], [9.5, 0.5, F.E4, false],
       [10, 2, F.G4, false],
     ],
+    // D
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.E4, false], [5, 1, F.D4, false],
@@ -204,7 +214,7 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 和声氛围：弦乐组（长音铺底）
+    // 2. 和声氛围：弦乐组（重叠 + 长尾）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
@@ -212,10 +222,10 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 低音：多把大提琴（每小节都在，第 1、3 小节更强）
+    // 3. 低音：3 把大提琴叠奏（每小节都在，中间小节轻一点）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.08 : 0.14;  // 中间小节轻一点
+      const vol = (b === 1) ? 0.08 : 0.14;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
@@ -238,6 +248,7 @@ function generateBGM(sr) {
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
+  // 首尾淡入淡出
   const fin = Math.floor(sr * 0.05);
   const fout = Math.floor(sr * 0.2);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
