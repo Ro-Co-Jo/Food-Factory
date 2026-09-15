@@ -17,7 +17,8 @@ function generateBGM(sr) {
   const data = new Float32Array(length);
 
   const F = {
-    G3: 196.00, A3: 220.00, B3: 246.94,
+    B3: 246.94,
+    G3: 196.00, A3: 220.00,
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
     C5: 523.25, D5: 587.33,
   };
@@ -62,22 +63,46 @@ function generateBGM(sr) {
     }
   }
 
-  // 节奏型
-  const beatOffsets = [0, 1, 2, 3, 4, 5, 6.5, 7, 8];
-  const durations   = [1, 1, 1, 1, 1, 1, 0.5, 1, 3];
-
+  // ============ 四段旋律 ============
   const phrases = [
-    [F.C4, F.E4, F.G4, F.F4, F.A4, F.G4, F.D4, F.E4, F.E4],
-    [F.C4, F.E4, F.G4, F.F4, F.A4, F.G4, F.B4, F.C5, F.C5],
-    [F.E4, F.F4, F.G4, F.A4, F.C5, F.B4, F.D5, F.G4, F.G4],
-    [F.C4, F.E4, F.G4, F.F4, F.E4, F.D4, F.E4, F.C4, F.C4],
+    // A：C4 E4 G4 F4 [休0.25] A4 G4 [休0.5] D4 E4 E4(长)
+    [
+      [0, 1, F.C4], [1, 1, F.E4], [2, 1, F.G4], [3, 1, F.F4],
+      [4.25, 1, F.A4], [5.25, 1, F.G4],
+      [6.75, 0.5, F.D4], [7.25, 1, F.E4],
+      [8.25, 3.75, F.E4],
+    ],
+    // B：C4 E4 G4 F4 [休0.25] A4 G4 [休0.5] B4(1) C5(2) C5(长)
+    [
+      [0, 1, F.C4], [1, 1, F.E4], [2, 1, F.G4], [3, 1, F.F4],
+      [4.25, 1, F.A4], [5.25, 1, F.G4],
+      [6.75, 1, F.B4], [7.75, 2, F.C5],
+      [9.75, 2.25, F.C5],
+    ],
+    // C：E4 F4 G4 A4 [休0.25] C5 B4 [休0.5] D5(0.5) F4 G4 F4 E4(各0.5) G4(长)
+    [
+      [0, 1, F.E4], [1, 1, F.F4], [2, 1, F.G4], [3, 1, F.A4],
+      [4.25, 1, F.C5], [5.25, 1, F.B4],
+      [6.75, 0.5, F.D5],
+      [7.25, 0.5, F.F4], [7.75, 0.5, F.G4], [8.25, 0.5, F.F4], [8.75, 0.5, F.E4],
+      [9.25, 2.75, F.G4],
+    ],
+    // D：C4 E4 G4 F4 [休0.25] E4 D4 [休0.5] E4(0.5) C4(0.5) B3(1) C4(长)
+    [
+      [0, 1, F.C4], [1, 1, F.E4], [2, 1, F.G4], [3, 1, F.F4],
+      [4.25, 1, F.E4], [5.25, 1, F.D4],
+      [6.75, 0.5, F.E4], [7.25, 0.5, F.C4],
+      [7.75, 1, F.B3],
+      [8.75, 3.25, F.C4],
+    ],
   ];
 
+  // 和弦
   const phraseChords = [
     [
       { root: 130.81, notes: [F.C4, F.E4, F.G4] },
+      { root: F.A3, notes: [F.A3, F.C4, F.E4] },
       { root: 130.81, notes: [F.C4, F.E4, F.G4] },
-      { root: F.G3, notes: [F.G3, F.B3, F.D4] },
     ],
     [
       { root: 130.81, notes: [F.C4, F.E4, F.G4] },
@@ -86,8 +111,8 @@ function generateBGM(sr) {
     ],
     [
       { root: F.A3, notes: [F.A3, F.C4, F.E4] },
-      { root: F.A3, notes: [F.A3, F.C4, F.E4] },
-      { root: F.G3, notes: [F.G3, F.B3, F.D4] },
+      { root: 174.61, notes: [174.61, F.A3, F.C4] },
+      { root: 130.81, notes: [F.C4, F.E4, F.G4] },
     ],
     [
       { root: 174.61, notes: [174.61, F.A3, F.C4] },
@@ -96,15 +121,14 @@ function generateBGM(sr) {
     ],
   ];
 
+  // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
     const phraseStart = p * 3 * barDuration;
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    for (let i = 0; i < 9; i++) {
-      const startBeat = beatOffsets[i];
-      const dur = durations[i];
-      piano(phraseStart + startBeat * beat, melody[i], dur * beat * 0.98, 0.30);
+    for (const [startBeat, durBeats, freq] of melody) {
+      piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30);
     }
 
     for (let b = 0; b < 3; b++) {
