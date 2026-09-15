@@ -90,14 +90,14 @@ function generateBGM(sr) {
       [7, 1, F.E4, false],
       [8, 3, F.E4, true],   // ← 长音 legato
     ],
-    // B：B4 缩短到1拍，C5 保持8拍起，中间空0.5拍由veryLegato填补
+    // B：C5延长至1拍，G4延长至1拍，E4缩短至2拍
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
       [6.5, 1, F.B4, true],
-      [8, 0.5, F.C5, 'veryLegato'],
-      [8.5, 1, F.G4, false],
-      [9.5, 2.5, F.E4, true],
+      [8, 1, F.C5, 'veryLegato'],
+      [9, 1, F.G4, false],
+      [10, 2, F.E4, true],
     ],
     // C：E4 F4 G4 A4 C5 B4 · D5(0.5) G4(1) F4 G4 F4 E4(半拍) G4(长,legato)
     [
