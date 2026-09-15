@@ -1,5 +1,6 @@
 // src/workers/bgmWorker.js
 // 花狼の探店挑战 BGM
+// 长音前用 slur 连奏，避免同音重复敲击
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -23,15 +24,23 @@ function generateBGM(sr) {
     C5: 523.25, D5: 587.33,
   };
 
-  function piano(startT, freq, dur, volume) {
+  /**
+   * 钢琴音
+   * @param {boolean} legato 是否用连奏（slur）——attack 变慢，音量略低，衔接前一个音
+   */
+  function piano(startT, freq, dur, volume, legato = false) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
+    // 普通 attack：15ms（有敲击感）
+    // Legato attack：250ms（平滑滑入）
+    const attackTime = legato ? 0.25 : 0.015;
+    const volFactor = legato ? 0.75 : 1.0;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.015));
+      const attack = Math.min(1, pos / (sr * attackTime));
       const d1 = Math.exp(-pos / (sr * 1.8));
       const d2 = Math.exp(-pos / (sr * 0.8));
       const d3 = Math.exp(-pos / (sr * 0.25));
@@ -40,7 +49,7 @@ function generateBGM(sr) {
         0.09 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
         0.02 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
       const release = Math.min(1, (len - pos) / (sr * 0.3));
-      data[i] += wave * volume * attack * release;
+      data[i] += wave * volume * volFactor * attack * release;
     }
   }
 
@@ -64,40 +73,44 @@ function generateBGM(sr) {
   }
 
   // ============ 四段旋律 ============
+  // 每条：[起始拍, 时值(拍), 频率, 是否 legato]
   const phrases = [
-    // A：C4 E4 G4 F4 A4 G4 · D4 E4 E4(长3)
+    // A：C4 E4 G4 F4 A4 G4 · D4 E4(普通) E4(长,legato)
     [
-      [0, 1, F.C4], [1, 1, F.E4], [2, 1, F.G4], [3, 1, F.F4],
-      [4, 1, F.A4], [5, 1, F.G4],
-      [6.5, 0.5, F.D4], [7, 1, F.E4],
-      [8, 3, F.E4],
+      [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
+      [4, 1, F.A4, false], [5, 1, F.G4, false],
+      [6.5, 0.5, F.D4, false],
+      [7, 1, F.E4, false],
+      [8, 3, F.E4, true],   // ← 长音 legato
     ],
-    // B：C4 E4 G4 F4 A4 G4 · B4(0.5) C5(0.5) C5(长3.5)
+    // B：C4 E4 G4 F4 A4 G4 · B4(0.5) C5(0.5) C5(长,legato)
     [
-      [0, 1, F.C4], [1, 1, F.E4], [2, 1, F.G4], [3, 1, F.F4],
-      [4, 1, F.A4], [5, 1, F.G4],
-      [6.5, 0.5, F.B4], [7, 0.5, F.C5],
-      [7.5, 3.5, F.C5],
+      [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
+      [4, 1, F.A4, false], [5, 1, F.G4, false],
+      [6.5, 0.5, F.B4, false],
+      [7, 0.5, F.C5, false],
+      [7.5, 3.5, F.C5, true],  // ← 长音 legato
     ],
-    // C：E4 F4 G4 A4 C5 B4 · D5(0.5) G4(1) F4(0.5) G4(0.5) F4(0.5) E4(0.5) G4(长2)
+    // C：E4 F4 G4 A4 C5 B4 · D5(0.5) G4(1) F4 G4 F4 E4(半拍) G4(长,legato)
     [
-      [0, 1, F.E4], [1, 1, F.F4], [2, 1, F.G4], [3, 1, F.A4],
-      [4, 1, F.C5], [5, 1, F.B4],
-      [6.5, 0.5, F.D5], [7, 1, F.G4],
-      [8, 0.5, F.F4], [8.5, 0.5, F.G4], [9, 0.5, F.F4], [9.5, 0.5, F.E4],
-      [10, 2, F.G4],
+      [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
+      [4, 1, F.C5, false], [5, 1, F.B4, false],
+      [6.5, 0.5, F.D5, false],
+      [7, 1, F.G4, false],
+      [8, 0.5, F.F4, false], [8.5, 0.5, F.G4, false], [9, 0.5, F.F4, false], [9.5, 0.5, F.E4, false],
+      [10, 2, F.G4, false],  // ← C段 G4 前面没有相同音，不需要 legato
     ],
-    // D：C4 E4 G4 F4 E4 D4 · E4(0.5) C4(0.5) B3(0.5) C4(0.5) C4(长2)
+    // D：C4 E4 G4 F4 E4 D4 · E4(0.5) C4(0.5) B3(0.5) C4(0.5) C4(长,legato)
     [
-      [0, 1, F.C4], [1, 1, F.E4], [2, 1, F.G4], [3, 1, F.F4],
-      [4, 1, F.E4], [5, 1, F.D4],
-      [6.5, 0.5, F.E4], [7, 0.5, F.C4],
-      [7.5, 0.5, F.B3], [8, 0.5, F.C4],
-      [8.5, 2.5, F.C4],
+      [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
+      [4, 1, F.E4, false], [5, 1, F.D4, false],
+      [6.5, 0.5, F.E4, false], [7, 0.5, F.C4, false],
+      [7.5, 0.5, F.B3, false],
+      [8, 0.5, F.C4, false],
+      [8.5, 2.5, F.C4, true],  // ← 长音 legato
     ],
   ];
 
-  // 和弦
   const phraseChords = [
     [
       { root: 130.81, notes: [F.C4, F.E4, F.G4] },
@@ -127,8 +140,8 @@ function generateBGM(sr) {
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    for (const [startBeat, durBeats, freq] of melody) {
-      piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30);
+    for (const [startBeat, durBeats, freq, legato] of melody) {
+      piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
     for (let b = 0; b < 3; b++) {
