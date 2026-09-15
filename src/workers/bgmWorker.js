@@ -1,8 +1,7 @@
 // src/workers/bgmWorker.js
-// 方案D改良版：
-// - 大提琴音量降低
-// - 竖琴改为高八度泛音闪烁
-// - 八音盒改为双音摇铃
+// 方案D改良版 v2：
+// - 弦乐组音量降低（0.07 → 0.045），失谐层减少（4 → 3）
+// - 八音盒双音改为三度音程（且都在当前和弦内）
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -24,7 +23,8 @@ function generateBGM(sr) {
     G3: 196.00, A3: 220.00,
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
     C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99,
-    C6: 1046.50, E6: 1318.51, G6: 1567.98,
+    B5: 987.77,
+    C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98,
   };
 
   // ============ 音色 ============
@@ -54,14 +54,15 @@ function generateBGM(sr) {
     }
   }
 
-  /** 弦乐组：重叠 + 长尾，柔和氛围层 */
+  /** 弦乐组：重叠 + 长尾，柔和氛围层（音量降低，层数减少） */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
     const s1 = Math.floor((startT + actualDur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    const detunes = [1.0, 1.003, 0.997, 1.005];
+    // 从 4 层减到 3 层，减少厚度感
+    const detunes = [1.0, 1.003, 0.997];
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -74,11 +75,12 @@ function generateBGM(sr) {
         wave += 0.18 * Math.sin(2 * Math.PI * freq * 2 * d * t);
         wave += 0.05 * Math.sin(2 * Math.PI * freq * 3 * d * t);
       }
-      data[i] += wave * volume * env * 0.25;
+      // 层数从 4 降到 3，系数相应调整（除以 3 而不是 4）
+      data[i] += wave * volume * env * 0.33;
     }
   }
 
-  /** 大提琴：单把，音量已降低 */
+  /** 大提琴：单把 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -99,14 +101,14 @@ function generateBGM(sr) {
     }
   }
 
-  /** 3 把大提琴叠奏（音量系数已降低：0.4 + 0.35 + 0.35 = 1.1） */
+  /** 3 把大提琴叠奏 */
   function celloSection(startT, freq, dur, volume) {
     cello(startT, freq, dur, volume * 0.4, 1.0);
     cello(startT, freq, dur, volume * 0.35, 1.004);
     cello(startT, freq, dur, volume * 0.35, 0.996);
   }
 
-  /** 竖琴泛音：高八度，极轻，像星星闪烁 */
+  /** 竖琴泛音：高八度，极轻 */
   function harpHarmonic(startT, freq, volume) {
     const dur = 2.0;
     const s0 = Math.floor(startT * sr);
@@ -116,7 +118,6 @@ function generateBGM(sr) {
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.005));
       const decay = Math.exp(-pos / (sr * 0.8));
-      // 泛音：纯正弦为主，只加一点点 3 次谐波
       const wave =
         Math.sin(2 * Math.PI * freq * t) +
         0.08 * Math.sin(2 * Math.PI * freq * 3 * t);
@@ -124,7 +125,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 八音盒双音摇铃：两个音同时短促敲击 */
+  /** 八音盒双音摇铃（三度音程） */
   function musicBoxDuo(startT, freq1, freq2, volume) {
     const dur = 1.5;
     const s0 = Math.floor(startT * sr);
@@ -207,37 +208,39 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 和声氛围：弦乐组（音量 0.07，比之前 0.09 更轻）
+    // 2. 和声氛围：弦乐组（音量 0.07 → 0.045）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
-        stringEnsemble(barStart, note, barDuration * 0.95, 0.07);
+        stringEnsemble(barStart, note, barDuration * 0.95, 0.045);
       }
     }
 
-    // 3. 低音：大提琴（音量系数从 1.6 降到 1.1）
+    // 3. 低音：大提琴
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const vol = (b === 1) ? 0.06 : 0.11;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
-    // 4. 竖琴泛音：高八度闪烁，每小节 2 个弱拍
+    // 4. 竖琴泛音：高八度闪烁
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const c = chords[b];
-      // 弱拍 1：高八度根音
       harpHarmonic(barStart + 1.5 * beat, c.notes[0] * 2, 0.045);
-      // 弱拍 2：高八度五音
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒双音摇铃：每段第 3 小节第 1 拍
+    // 5. 八音盒双音摇铃：每段第 3 小节第 1 拍，全部改为三度音程
+    //    A 段第3小节：C 和弦 → C6 + E6（大三度）
+    //    B 段第3小节：G 和弦 → B5 + D6（小三度）
+    //    C 段第3小节：C 和弦 → E6 + G6（小三度）
+    //    D 段第3小节：C 和弦 → C6 + E6（大三度）
     const boxPairs = [
-      [F.C6, F.G6],
-      [F.E6, F.C6],
-      [F.G5, F.C6],
-      [F.C6, F.E6],
+      [F.C6, F.E6],  // A：大三度
+      [F.B5, F.D6],  // B：小三度
+      [F.E6, F.G6],  // C：小三度
+      [F.C6, F.E6],  // D：大三度
     ];
     const [b1, b2] = boxPairs[p];
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.05);
