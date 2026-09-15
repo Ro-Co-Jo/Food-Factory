@@ -28,30 +28,37 @@ function generateBGM(sr) {
    * 钢琴音
    * @param {boolean} legato 是否用连奏（slur）——attack 变慢，音量略低，衔接前一个音
    */
-  function piano(startT, freq, dur, volume, legato = false) {
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    const len = s1 - s0;
-    if (len <= 0) return;
-    // 普通 attack：15ms（有敲击感）
-    // Legato attack：250ms（平滑滑入）
-    const attackTime = legato ? 0.25 : 0.015;
-    const volFactor = legato ? 0.75 : 1.0;
-    for (let i = s0; i < s1; i++) {
-      const t = (i - s0) / sr;
-      const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * attackTime));
-      const d1 = Math.exp(-pos / (sr * 1.8));
-      const d2 = Math.exp(-pos / (sr * 0.8));
-      const d3 = Math.exp(-pos / (sr * 0.25));
-      const wave =
-        d1 * Math.sin(2 * Math.PI * freq * t) +
-        0.09 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.02 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
-      const release = Math.min(1, (len - pos) / (sr * 0.3));
-      data[i] += wave * volume * volFactor * attack * release;
+    function piano(startT, freq, dur, volume, legato = false) {
+      const s0 = Math.floor(startT * sr);
+      const s1 = Math.floor((startT + dur) * sr);
+      const len = s1 - s0;
+      if (len <= 0) return;
+      let attackTime, volFactor;
+      if (legato === 'veryLegato') {
+        attackTime = 0.45;   // 450ms 极慢渐入
+        volFactor = 0.65;    // 音量压低，让它"藏"在 B4 尾音里
+      } else if (legato === true) {
+        attackTime = 0.25;
+        volFactor = 0.75;
+      } else {
+        attackTime = 0.015;
+        volFactor = 1.0;
+      }
+      for (let i = s0; i < s1; i++) {
+        const t = (i - s0) / sr;
+        const pos = i - s0;
+        const attack = Math.min(1, pos / (sr * attackTime));
+        const d1 = Math.exp(-pos / (sr * 1.8));
+        const d2 = Math.exp(-pos / (sr * 0.8));
+        const d3 = Math.exp(-pos / (sr * 0.25));
+        const wave =
+          d1 * Math.sin(2 * Math.PI * freq * t) +
+          0.09 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
+          0.02 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
+        const release = Math.min(1, (len - pos) / (sr * 0.3));
+        data[i] += wave * volume * volFactor * attack * release;
+      }
     }
-  }
 
   function bass(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
