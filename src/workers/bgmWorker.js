@@ -91,11 +91,12 @@ function generateBGM(sr) {
       [8, 3, F.E4, true],   // ← 长音 legato
     ],
     // B：B4、C5、G4 各 1 拍均匀，E4 slur 长音
+    // B：B4、C5、G4 全部正常attack，只有 E4 slur
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
-      [6.5, 1, F.B4, true],
-      [7.5, 1, F.C5, 'veryLegato'],
+      [6.5, 1, F.B4, false],
+      [7.5, 1, F.C5, false],
       [8.5, 1, F.G4, false],
       [9.5, 2.5, F.E4, true],
     ],
