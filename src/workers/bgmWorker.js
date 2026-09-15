@@ -1,7 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v2：
-// - 弦乐组音量降低（0.07 → 0.045），失谐层减少（4 → 3）
-// - 八音盒双音改为三度音程（且都在当前和弦内）
+// 方案D改良版 v3：
+// - 弦乐组音量 0.045，3 层失谐
+// - 八音盒主双音音量 0.05 → 0.03
+// - 新增八音盒辅助装饰：每小节第3拍 根→三→五 上行（音量 0.018）
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -54,14 +55,13 @@ function generateBGM(sr) {
     }
   }
 
-  /** 弦乐组：重叠 + 长尾，柔和氛围层（音量降低，层数减少） */
+  /** 弦乐组：重叠 + 长尾，柔和氛围层 */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
     const s1 = Math.floor((startT + actualDur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    // 从 4 层减到 3 层，减少厚度感
     const detunes = [1.0, 1.003, 0.997];
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
@@ -75,7 +75,6 @@ function generateBGM(sr) {
         wave += 0.18 * Math.sin(2 * Math.PI * freq * 2 * d * t);
         wave += 0.05 * Math.sin(2 * Math.PI * freq * 3 * d * t);
       }
-      // 层数从 4 降到 3，系数相应调整（除以 3 而不是 4）
       data[i] += wave * volume * env * 0.33;
     }
   }
@@ -125,7 +124,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 八音盒双音摇铃（三度音程） */
+  /** 八音盒主双音摇铃（三度音程） */
   function musicBoxDuo(startT, freq1, freq2, volume) {
     const dur = 1.5;
     const s0 = Math.floor(startT * sr);
@@ -138,6 +137,23 @@ function generateBGM(sr) {
       const wave1 = Math.sin(2 * Math.PI * freq1 * t) + 0.12 * Math.sin(2 * Math.PI * freq1 * 3 * t);
       const wave2 = Math.sin(2 * Math.PI * freq2 * t) + 0.12 * Math.sin(2 * Math.PI * freq2 * 3 * t);
       data[i] += (wave1 + 0.6 * wave2) * volume * attack * decay;
+    }
+  }
+
+  /** 八音盒单音装饰：更短、更轻，像远处的风铃 */
+  function musicBoxNote(startT, freq, volume) {
+    const dur = 0.9;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.003));
+      const decay = Math.exp(-pos / (sr * 0.45));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.10 * Math.sin(2 * Math.PI * freq * 3 * t);
+      data[i] += wave * volume * attack * decay;
     }
   }
 
@@ -208,7 +224,7 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 和声氛围：弦乐组（音量 0.07 → 0.045）
+    // 2. 和声氛围：弦乐组
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
@@ -231,11 +247,7 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒双音摇铃：每段第 3 小节第 1 拍，全部改为三度音程
-    //    A 段第3小节：C 和弦 → C6 + E6（大三度）
-    //    B 段第3小节：G 和弦 → B5 + D6（小三度）
-    //    C 段第3小节：C 和弦 → E6 + G6（小三度）
-    //    D 段第3小节：C 和弦 → C6 + E6（大三度）
+    // 5. 八音盒主双音摇铃：每段第 3 小节第 1 拍（音量 0.03）
     const boxPairs = [
       [F.C6, F.E6],  // A：大三度
       [F.B5, F.D6],  // B：小三度
@@ -243,7 +255,18 @@ function generateBGM(sr) {
       [F.C6, F.E6],  // D：大三度
     ];
     const [b1, b2] = boxPairs[p];
-    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.05);
+    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.03);
+
+    // 6. 八音盒辅助装饰：每小节第 3 拍轻点一下
+    //    第 1 小节 → 根音高八度
+    //    第 2 小节 → 三音高八度
+    //    第 3 小节 → 五音高八度
+    //    形成 根 → 三 → 五 的上行漂浮线条
+    for (let b = 0; b < 3; b++) {
+      const barStart = phraseStart + b * barDuration;
+      const c = chords[b];
+      musicBoxNote(barStart + 2 * beat, c.notes[b] * 2, 0.018);
+    }
   }
 
   // 归一化
