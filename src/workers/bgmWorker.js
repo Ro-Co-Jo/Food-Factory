@@ -1,8 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v5：
-// - 移除八音盒辅助装饰（根→三→五循环）
-// - 保留：晚风风声、大提琴 0.14/0.08、八音盒主双音 0.022
-// - 弦乐组 0.045，3 层失谐
+// 方案D改良版 v6：
+// - 八音盒主双音 0.022 → 0.015
+// - 大提琴 0.14/0.08 → 0.24/0.14
+// - 风声 0.55 → 1.3，alpha 0.0025 → 0.005
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -30,7 +30,6 @@ function generateBGM(sr) {
 
   // ============ 音色 ============
 
-  /** 钢琴：主旋律 */
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -55,7 +54,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 弦乐组：重叠 + 长尾，柔和氛围层 */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
@@ -79,7 +77,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 大提琴：单把 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -100,14 +97,12 @@ function generateBGM(sr) {
     }
   }
 
-  /** 3 把大提琴叠奏 */
   function celloSection(startT, freq, dur, volume) {
     cello(startT, freq, dur, volume * 0.4, 1.0);
     cello(startT, freq, dur, volume * 0.35, 1.004);
     cello(startT, freq, dur, volume * 0.35, 0.996);
   }
 
-  /** 竖琴泛音：高八度，极轻 */
   function harpHarmonic(startT, freq, volume) {
     const dur = 2.0;
     const s0 = Math.floor(startT * sr);
@@ -124,7 +119,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 八音盒主双音摇铃（三度音程） */
   function musicBoxDuo(startT, freq1, freq2, volume) {
     const dur = 1.5;
     const s0 = Math.floor(startT * sr);
@@ -140,14 +134,14 @@ function generateBGM(sr) {
     }
   }
 
-  /** 晚风风声：低通白噪声 + 缓慢包络 */
+  /** 晚风风声：低通白噪声 + 缓慢包络（alpha 提升到 0.005，稍微明亮） */
   function windNoise(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
     let lp = 0;
-    const alpha = 0.0025;
+    const alpha = 0.005;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -220,8 +214,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 先铺风声（整段背景）============
-  windNoise(0, totalDuration, 0.55);
+  // ============ 先铺风声（整段背景，音量 1.3）============
+  windNoise(0, totalDuration, 1.3);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
@@ -234,7 +228,7 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 和声氛围：弦乐组
+    // 2. 弦乐组
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
@@ -242,14 +236,14 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 低音：大提琴
+    // 3. 大提琴（音量提升到 0.24 / 0.14）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.08 : 0.14;
+      const vol = (b === 1) ? 0.14 : 0.24;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
-    // 4. 竖琴泛音：高八度闪烁
+    // 4. 竖琴泛音
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const c = chords[b];
@@ -257,15 +251,15 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒主双音摇铃：每段第 3 小节第 1 拍
+    // 5. 八音盒主双音（音量降到 0.015）
     const boxPairs = [
-      [F.C6, F.E6],  // A：大三度
-      [F.B5, F.D6],  // B：小三度
-      [F.E6, F.G6],  // C：小三度
-      [F.C6, F.E6],  // D：大三度
+      [F.C6, F.E6],
+      [F.B5, F.D6],
+      [F.E6, F.G6],
+      [F.C6, F.E6],
     ];
     const [b1, b2] = boxPairs[p];
-    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.022);
+    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.015);
   }
 
   // 归一化
