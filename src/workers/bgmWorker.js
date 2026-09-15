@@ -83,12 +83,12 @@ function generateBGM(sr) {
       [7, 1, F.E4, false],
       [8, 3, F.E4, true],   // ← 长音 legato
     ],
-    // B：C4 E4 G4 F4 A4 G4 · B4(0.5) 空(1) C5(8拍,0.5) G4(1) E4(9.5起,slur,2.5)
+    // B：B4 从6.5拍到8拍(slur) C5 从8拍(slur) G4 E4(slur)
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
-      [6.5, 0.5, F.B4, false],
-      [8, 0.5, F.C5, false],
+      [6.5, 1.5, F.B4, true],
+      [8, 0.5, F.C5, true],
       [8.5, 1, F.G4, false],
       [9.5, 2.5, F.E4, true],
     ],
