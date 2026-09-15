@@ -1,6 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D：钢琴主旋律 + 弦乐氛围 + 多把大提琴 + 竖琴 + 八音盒
-// 弦乐组音符重叠 + 长尾衰减，消除切割感
+// 方案D改良版：
+// - 大提琴音量降低
+// - 竖琴改为高八度泛音闪烁
+// - 八音盒改为双音摇铃
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -21,12 +23,13 @@ function generateBGM(sr) {
     B3: 246.94,
     G3: 196.00, A3: 220.00,
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
-    C5: 523.25, D5: 587.33, E5: 659.25,
+    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99,
+    C6: 1046.50, E6: 1318.51, G6: 1567.98,
   };
 
   // ============ 音色 ============
 
-  /** 钢琴：主旋律，支持 legato / veryLegato */
+  /** 钢琴：主旋律 */
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -51,22 +54,18 @@ function generateBGM(sr) {
     }
   }
 
-  /** 弦乐组：音符重叠 + 长尾衰减，形成连续暖雾 */
+  /** 弦乐组：重叠 + 长尾，柔和氛围层 */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
-    // 实际发声时长 = 1.8 倍，与下一个和弦重叠
     const actualDur = dur * 1.8;
     const s1 = Math.floor((startT + actualDur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    // 4 把弦乐轻微失谐，产生暖雾层
     const detunes = [1.0, 1.003, 0.997, 1.005];
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      // 极慢起音（600ms）
       const attack = Math.min(1, pos / (sr * 0.6));
-      // 极长尾（1000ms），自然淡出，与下个音重叠
       const release = Math.min(1, (len - pos) / (sr * 1.0));
       const env = attack * release;
       let wave = 0;
@@ -79,7 +78,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 单把大提琴 */
+  /** 大提琴：单把，音量已降低 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -88,71 +87,67 @@ function generateBGM(sr) {
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.25));
+      const attack = Math.min(1, pos / (sr * 0.3));
       const decay = Math.exp(-pos / (sr * 2.2));
-      // 长尾：800ms
       const release = Math.min(1, (len - pos) / (sr * 0.8));
       const f = freq * detune;
       const wave =
         Math.sin(2 * Math.PI * f * t) +
-        0.28 * Math.sin(2 * Math.PI * f * 2 * t) +
-        0.10 * Math.sin(2 * Math.PI * f * 3 * t) +
-        0.03 * Math.sin(2 * Math.PI * f * 4 * t);
+        0.25 * Math.sin(2 * Math.PI * f * 2 * t) +
+        0.08 * Math.sin(2 * Math.PI * f * 3 * t);
       data[i] += wave * volume * attack * decay * release;
     }
   }
 
-  /** 3 把大提琴叠奏 */
+  /** 3 把大提琴叠奏（音量系数已降低：0.4 + 0.35 + 0.35 = 1.1） */
   function celloSection(startT, freq, dur, volume) {
-    cello(startT, freq, dur, volume * 0.6, 1.0);
-    cello(startT, freq, dur, volume * 0.5, 1.004);
-    cello(startT, freq, dur, volume * 0.5, 0.996);
+    cello(startT, freq, dur, volume * 0.4, 1.0);
+    cello(startT, freq, dur, volume * 0.35, 1.004);
+    cello(startT, freq, dur, volume * 0.35, 0.996);
   }
 
-  /** 竖琴：柔和点缀 */
-  function harp(startT, freq, volume) {
-    const dur = 1.2;
+  /** 竖琴泛音：高八度，极轻，像星星闪烁 */
+  function harpHarmonic(startT, freq, volume) {
+    const dur = 2.0;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.005));
-      const decay = Math.exp(-pos / (sr * 0.9));
+      const decay = Math.exp(-pos / (sr * 0.8));
+      // 泛音：纯正弦为主，只加一点点 3 次谐波
       const wave =
         Math.sin(2 * Math.PI * freq * t) +
-        0.18 * Math.sin(2 * Math.PI * freq * 2 * t);
+        0.08 * Math.sin(2 * Math.PI * freq * 3 * t);
       data[i] += wave * volume * attack * decay;
     }
   }
 
-  /** 八音盒：梦幻高音点缀 */
-  function musicBox(startT, freq, volume) {
-    const dur = 1.2;
+  /** 八音盒双音摇铃：两个音同时短促敲击 */
+  function musicBoxDuo(startT, freq1, freq2, volume) {
+    const dur = 1.5;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.003));
-      const decay = Math.exp(-pos / (sr * 0.6));
-      const wave =
-        Math.sin(2 * Math.PI * freq * t) +
-        0.15 * Math.sin(2 * Math.PI * freq * 3 * t);
-      data[i] += wave * volume * attack * decay;
+      const decay = Math.exp(-pos / (sr * 0.7));
+      const wave1 = Math.sin(2 * Math.PI * freq1 * t) + 0.12 * Math.sin(2 * Math.PI * freq1 * 3 * t);
+      const wave2 = Math.sin(2 * Math.PI * freq2 * t) + 0.12 * Math.sin(2 * Math.PI * freq2 * 3 * t);
+      data[i] += (wave1 + 0.6 * wave2) * volume * attack * decay;
     }
   }
 
   // ============ 旋律 ============
   const phrases = [
-    // A
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
       [6.5, 0.5, F.D4, false], [7, 1, F.E4, false],
       [8, 3, F.E4, true],
     ],
-    // B
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
@@ -161,7 +156,6 @@ function generateBGM(sr) {
       [8.5, 1, F.G4, false],
       [9.5, 2.5, F.E4, true],
     ],
-    // C
     [
       [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
       [4, 1, F.C5, false], [5, 1, F.B4, false],
@@ -169,7 +163,6 @@ function generateBGM(sr) {
       [8, 0.5, F.F4, false], [8.5, 0.5, F.G4, false], [9, 0.5, F.F4, false], [9.5, 0.5, F.E4, false],
       [10, 2, F.G4, false],
     ],
-    // D
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.E4, false], [5, 1, F.D4, false],
@@ -214,27 +207,40 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 和声氛围：弦乐组（重叠 + 长尾）
+    // 2. 和声氛围：弦乐组（音量 0.07，比之前 0.09 更轻）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
-        stringEnsemble(barStart, note, barDuration * 0.95, 0.09);
+        stringEnsemble(barStart, note, barDuration * 0.95, 0.07);
       }
     }
 
-    // 3. 低音：3 把大提琴叠奏（每小节都在，中间小节轻一点）
+    // 3. 低音：大提琴（音量系数从 1.6 降到 1.1）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.08 : 0.14;
+      const vol = (b === 1) ? 0.06 : 0.11;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
-    // 4. 竖琴点缀：每段第 2 小节弱拍
-    harp(phraseStart + barDuration + 2 * beat, chords[1].notes[0], 0.055);
+    // 4. 竖琴泛音：高八度闪烁，每小节 2 个弱拍
+    for (let b = 0; b < 3; b++) {
+      const barStart = phraseStart + b * barDuration;
+      const c = chords[b];
+      // 弱拍 1：高八度根音
+      harpHarmonic(barStart + 1.5 * beat, c.notes[0] * 2, 0.045);
+      // 弱拍 2：高八度五音
+      harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
+    }
 
-    // 5. 八音盒点缀：每段第 3 小节第 1 拍
-    const boxNote = [F.C5, F.E5, F.G4, F.C5][p];
-    musicBox(phraseStart + 2 * barDuration, boxNote, 0.055);
+    // 5. 八音盒双音摇铃：每段第 3 小节第 1 拍
+    const boxPairs = [
+      [F.C6, F.G6],
+      [F.E6, F.C6],
+      [F.G5, F.C6],
+      [F.C6, F.E6],
+    ];
+    const [b1, b2] = boxPairs[p];
+    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.05);
   }
 
   // 归一化
@@ -248,7 +254,6 @@ function generateBGM(sr) {
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
-  // 首尾淡入淡出
   const fin = Math.floor(sr * 0.05);
   const fout = Math.floor(sr * 0.2);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
