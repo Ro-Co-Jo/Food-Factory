@@ -1,8 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v16：
-// - 海浪整段加"入场/出场包络"：前 5 秒静音，5-15 秒渐入，最后 6 秒渐出
-// - 避免点击网页时被海浪吓到
-// - 其他层（钢琴/弦乐/大提琴/竖琴/八音盒/微风）保持不变
+// 方案D改良版 v17：
+// - 微风也加静音期（前8秒静音，8-18秒渐入）—— 之前用户听到的"海浪"可能是微风
+// - 海浪音量 0.32 → 0.20
+// - 弦乐组 0.042 → 0.030
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -133,6 +133,9 @@ function generateBGM(sr) {
     }
   }
 
+  /**
+   * 微风 v17：前 8 秒静音，8-18 秒渐入，最后 5 秒渐出
+   */
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -142,25 +145,31 @@ function generateBGM(sr) {
     const alpha = 0.015;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
-      const pos = i - s0;
       const noise = Math.random() * 2 - 1;
       lp += alpha * (noise - lp);
       const env =
         0.50 +
         0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
         0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
-      const fadeIn = Math.min(1, pos / (sr * 3.0));
-      const fadeOut = Math.min(1, (len - pos) / (sr * 3.0));
-      data[i] += lp * env * fadeIn * fadeOut * volume * 15;
+
+      // 整段入场/出场包络
+      let globalFade;
+      if (t < 8) {
+        globalFade = 0;
+      } else if (t < 18) {
+        globalFade = Math.pow((t - 8) / 10, 1.3);
+      } else if (t < dur - 5) {
+        globalFade = 1;
+      } else {
+        globalFade = Math.max(0, (dur - t) / 5);
+      }
+
+      data[i] += lp * env * globalFade * volume * 15;
     }
   }
 
   /**
-   * 海浪声 v16：增加整段入场/出场包络
-   * - 前 5 秒完全静音（点击网页不会吓到）
-   * - 5-15 秒从 0 淡入到 1
-   * - 15-24 秒保持 1
-   * - 最后 6 秒从 1 淡出到 0（循环接缝无声）
+   * 海浪 v17：前 8 秒静音，8-18 秒渐入（与微风同步）
    */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -187,16 +196,15 @@ function generateBGM(sr) {
       const pos = i - s0;
 
       // ===== 整段入场/出场包络 =====
-      // 前 5 秒静音，5-15 秒渐入，15-24 秒满，最后 6 秒渐出
       let globalFade;
-      if (t < 5) {
+      if (t < 8) {
         globalFade = 0;
-      } else if (t < 15) {
-        globalFade = Math.pow((t - 5) / 10, 1.3);
-      } else if (t < dur - 6) {
+      } else if (t < 18) {
+        globalFade = Math.pow((t - 8) / 10, 1.3);
+      } else if (t < dur - 5) {
         globalFade = 1;
       } else {
-        globalFade = Math.max(0, (dur - t) / 6);
+        globalFade = Math.max(0, (dur - t) / 5);
       }
 
       // ===== 大结构 =====
@@ -270,7 +278,6 @@ function generateBGM(sr) {
       const activity = Math.max(surgeAmp, fallAmp);
       const env = bigEnv * (0.10 + activity * 0.9);
 
-      // ===== 最终累加：把 globalFade 乘进来 =====
       data[i] += sample * env * globalFade * volume;
     }
   }
@@ -331,8 +338,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 背景：海浪 + 微风 ============
-  oceanWave(0, totalDuration, 0.32);
+  // ============ 背景：海浪 + 微风（音量都降了）============
+  oceanWave(0, totalDuration, 0.20);   // 海浪 0.32 → 0.20
   breeze(0, totalDuration, 0.30);
 
   // ============ 合成 ============
@@ -346,11 +353,11 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
     }
 
-    // 2. 弦乐组
+    // 2. 弦乐组（音量 0.042 → 0.030）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
-        stringEnsemble(barStart, note, barDuration * 0.95, 0.042);
+        stringEnsemble(barStart, note, barDuration * 0.95, 0.030);
       }
     }
 
