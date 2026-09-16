@@ -1,10 +1,10 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v27：两遍式扩展 + 长笛副旋律
+// 方案D改良版 v28：75s 两遍式 + 马林巴副旋律（替代长笛，去啸叫）
 // 总长 75s：
-//   0-30s    第一遍 ABCD（轻）
-//   30-37.5s 间奏（海浪+竖琴）
-//   37.5-67.5s 第二遍 ABCD（全乐器+长笛）
-//   67.5-75s 尾奏（钢琴+长笛渐弱）
+//   0-30s      第一遍 ABCD（轻）
+//   30-37.5s   间奏（海浪+竖琴）
+//   37.5-67.5s 第二遍 ABCD（全乐器 + 马林巴）
+//   67.5-75s   尾奏（钢琴 + 马林巴渐弱）
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -19,11 +19,11 @@ function generateBGM(sr) {
   const phraseDuration = 3 * barDuration;   // 7.5s（1 句 = 3 小节）
 
   // 结构时间点
-  const FIRST_START  = 0;       // 第一遍开始
-  const INTERLUDE    = 30;      // 间奏开始
-  const SECOND_START = 37.5;    // 第二遍开始
-  const OUTRO_START  = 67.5;    // 尾奏开始
-  const TOTAL        = 75;      // 总长
+  const FIRST_START  = 0;
+  const INTERLUDE    = 30;
+  const SECOND_START = 37.5;
+  const OUTRO_START  = 67.5;
+  const TOTAL        = 75;
 
   const length = Math.floor(sr * TOTAL);
   const data = new Float32Array(length);
@@ -64,8 +64,8 @@ function generateBGM(sr) {
     }
   }
 
-  /** 长笛：副旋律，轻微颤音，柔和的吹奏感 */
-  function flute(startT, freq, dur, volume) {
+  /** 马林巴：温暖木质，敲击式起音，不会啸叫 */
+  function marimba(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
@@ -73,17 +73,14 @@ function generateBGM(sr) {
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.12));
-      const sustain = pos < len * 0.82 ? 1 : (len - pos) / (len * 0.18);
-      const release = Math.min(1, (len - pos) / (sr * 0.35));
-      const env = attack * sustain * release;
-      // 轻微颤音
-      const vib = 1 + 0.0035 * Math.sin(2 * Math.PI * 5.2 * t);
-      const f = freq * vib;
+      const attack = Math.min(1, pos / (sr * 0.003));
+      const decay = Math.exp(-pos / (sr * 0.9));
+      const release = Math.min(1, (len - pos) / (sr * 0.4));
+      const env = attack * decay * release;
       const wave =
-        Math.sin(2 * Math.PI * f * t) +
-        0.15 * Math.sin(2 * Math.PI * f * 2 * t) +
-        0.04 * Math.sin(2 * Math.PI * f * 3 * t);
+        Math.sin(2 * Math.PI * freq * t) +
+        0.25 * Math.sin(2 * Math.PI * freq * 4 * t) +
+        0.06 * Math.sin(2 * Math.PI * freq * 10 * t);
       data[i] += wave * volume * env;
     }
   }
@@ -169,7 +166,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** globalFade：按大结构设计 */
+  /** globalFade：按大结构设计（v26 定稿版 + 扩展到 75s） */
   function getGlobalFade(t) {
     if (t < 5) return 0;
     else if (t < 7.5) return ((t - 5) / 2.5) * 0.08;
@@ -307,8 +304,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // 长笛副旋律：主旋律的大三度上方（×1.26）
-  const flutePhrases = phrases.map(phrase =>
+  // 马林巴副旋律：主旋律的大三度上方（×1.2599）
+  const marimbaPhrases = phrases.map(phrase =>
     phrase.map(([beatPos, durBeats, freq, legato]) =>
       [beatPos, durBeats, freq * 1.2599, legato]
     )
@@ -350,10 +347,8 @@ function generateBGM(sr) {
 
   // ==================== 段落渲染辅助 ====================
 
-  /** 渲染一句（钢琴 + 和弦 + 可选乐器） */
   function renderPhrase(startTime, phraseIndex, config) {
     const melody = phrases[phraseIndex];
-    const fluteMelody = flutePhrases[phraseIndex];
     const chords = phraseChords[phraseIndex];
 
     // 1. 钢琴主旋律
@@ -361,10 +356,15 @@ function generateBGM(sr) {
       piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 长笛副旋律
-    if (config.flute) {
-      for (const [startBeat, durBeats, freq] of fluteMelody) {
-        flute(startTime + startBeat * beat, freq, durBeats * beat * 0.95, config.fluteVolume || 0.12);
+    // 2. 马林巴副旋律
+    if (config.marimba) {
+      for (const [startBeat, durBeats, freq] of marimbaPhrases[phraseIndex]) {
+        marimba(
+          startTime + startBeat * beat,
+          freq,
+          durBeats * beat * 0.95,
+          config.marimbaVolume || 0.12
+        );
       }
     }
 
@@ -397,7 +397,7 @@ function generateBGM(sr) {
       }
     }
 
-    // 6. 八音盒（每句第 3 小节第 1 拍）
+    // 6. 八音盒
     if (config.musicBox) {
       const [b1, b2, boxVol] = boxPairs[phraseIndex];
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
@@ -405,14 +405,12 @@ function generateBGM(sr) {
   }
 
   // ==================== 第一遍（0 - 30s，轻）====================
-  // A、B：钢琴 + 八音盒
   renderPhrase(FIRST_START + 0 * phraseDuration, 0, {
     musicBox: true,
   });
   renderPhrase(FIRST_START + 1 * phraseDuration, 1, {
     musicBox: true,
   });
-  // C、D：加弦乐 + 大提琴
   renderPhrase(FIRST_START + 2 * phraseDuration, 2, {
     musicBox: true,
     strings: true,
@@ -425,15 +423,12 @@ function generateBGM(sr) {
   });
 
   // ==================== 间奏（30 - 37.5s）====================
-  // 只用和弦 + 竖琴，不用钢琴主旋律
   {
     const startTime = INTERLUDE;
-    // 用 A 段的和弦作为间奏和声
     const chords = phraseChords[0];
     for (let b = 0; b < 3; b++) {
       const barStart = startTime + b * barDuration;
       const c = chords[b];
-      // 竖琴铺满
       harpHarmonic(barStart, c.notes[0], 0.030);
       harpHarmonic(barStart + 1 * beat, c.notes[1], 0.028);
       harpHarmonic(barStart + 2 * beat, c.notes[2], 0.026);
@@ -443,26 +438,26 @@ function generateBGM(sr) {
 
   // ==================== 第二遍（37.5 - 67.5s，满）====================
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
-    flute: true, fluteVolume: 0.10,
+    marimba: true, marimbaVolume: 0.11,
     musicBox: true,
     strings: true,
     cello: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
-    flute: true, fluteVolume: 0.10,
+    marimba: true, marimbaVolume: 0.11,
     musicBox: true,
     strings: true,
     cello: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
-    flute: true, fluteVolume: 0.11,
+    marimba: true, marimbaVolume: 0.12,
     musicBox: true,
     strings: true,
     cello: true,
     harp: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
-    flute: true, fluteVolume: 0.10,
+    marimba: true, marimbaVolume: 0.11,
     musicBox: true,
     strings: true,
     cello: true,
@@ -470,11 +465,8 @@ function generateBGM(sr) {
   });
 
   // ==================== 尾奏（67.5 - 75s）====================
-  // 钢琴 + 长笛，逐渐变淡（用音符本身表现）
   {
     const startTime = OUTRO_START;
-    // 用 D 段的和弦，钢琴弹慢速琶音
-    const chords = phraseChords[3];
 
     // 钢琴：慢速 C 大调琶音
     piano(startTime + 0 * beat, F.C4, 4 * beat, 0.26, false);
@@ -485,10 +477,10 @@ function generateBGM(sr) {
     piano(startTime + 5 * beat, F.G4, 4 * beat, 0.16, false);
     piano(startTime + 6 * beat, F.C5, 8 * beat, 0.14, 'veryLegato');
 
-    // 长笛：高八度呼应
-    flute(startTime + 2 * beat, F.C5 * 1.2599, 2 * beat, 0.08);
-    flute(startTime + 4 * beat, F.E5 * 1.2599, 2 * beat, 0.07);
-    flute(startTime + 6 * beat, F.G5 * 1.2599, 3 * beat, 0.06);
+    // 马林巴：高八度呼应
+    marimba(startTime + 2 * beat, F.C5, 2 * beat, 0.10);
+    marimba(startTime + 4 * beat, F.E5, 2 * beat, 0.09);
+    marimba(startTime + 6 * beat, F.G5, 3 * beat, 0.07);
   }
 
   // ==================== 归一化 ====================
@@ -502,7 +494,7 @@ function generateBGM(sr) {
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
-  // 首尾淡入淡出（防止爆音）
+  // 首尾淡入淡出
   const fin = Math.floor(sr * 0.05);
   const fout = Math.floor(sr * 0.4);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
