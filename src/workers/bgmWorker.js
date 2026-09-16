@@ -1,9 +1,9 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v10：
-// - 海浪声重新设计：中频水声 + 不规则起伏 + 大结构渐强
-// - 海浪音量 2.0 → 1.2
-// - 海浪大结构：A小引入 → B渐强 → C继续 → D峰值后回落
-// - 钢琴、大提琴、八音盒保持 v9 设定
+// 方案D改良版 v11：
+// - 海浪声完全重做：事件驱动 + 动态低通
+// - 每个浪独立随机：时长 / 峰值 / 上升比 / 间隔
+// - 大结构 A→B→C→D 渐强回落
+// - 海浪音量 1.0
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -137,10 +137,11 @@ function generateBGM(sr) {
   }
 
   /**
-   * 海浪声（重新设计）：
-   * - 音色：两级低通差分 → 中频水声，切掉过多低频（避免沙漠感）
-   * - 大结构包络：A小引入 → B渐强 → C继续 → D峰值后回落到A开头
-   * - 段内小浪：3 个不同频率正弦叠加，且每段频率不同 → 不规则起伏
+   * 海浪声（事件驱动版）：
+   * - 每个浪是独立事件：随机时长 2.5-4.5s / 峰值 0.5-1.0 / 上升比 20%-40%
+   * - 浪与浪之间有 0.4-1.4s 的随机间隔
+   * - 音色：动态低通 —— 浪尖截止频率高（宽带泡沫），浪谷截止频率低（低频隆隆）
+   * - 大结构：A 小引入 → B 渐强 → C 继续 → D 峰值后回落
    */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -148,84 +149,94 @@ function generateBGM(sr) {
     const len = s1 - s0;
     if (len <= 0) return;
 
-    // 三层滤波：低频（用于减法）、中频（主体）、高频（泡沫）
-    let lp1 = 0, lp2 = 0, lp3 = 0;
-    const a1 = 0.012;   // 低频
-    const a2 = 0.08;    // 中频
-    const a3 = 0.28;    // 高频泡沫
+    // 两级低通状态
+    let lp1 = 0, lp2 = 0;
 
-    const sectionLen = dur / 4;  // 每段 7.5 秒
-    const songLen = dur;
+    // 当前浪事件
+    let waveState = {
+      active: false,
+      elapsed: 0,
+      duration: 0,
+      peak: 0,
+      riseRatio: 0,
+    };
+    let nextWaveIn = 0.6;  // 第一个浪 0.6 秒后开始
+
+    const sectionLen = dur / 4;
 
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const noise = Math.random() * 2 - 1;
 
-      lp1 += a1 * (noise - lp1);
-      lp2 += a2 * (noise - lp2);
-      lp3 += a3 * (noise - lp3);
-
-      // 中频水声主体：中频减去部分低频（去掉隆隆感）
-      const waterBody = lp2 - lp1 * 0.7;
-      // 高频泡沫：高频减去中频的差分
-      const foam = lp3 - lp2;
-
-      // ===== 大结构包络（30秒，跟随 A→B→C→D）=====
-      const sectionIndex = Math.floor(t / sectionLen);  // 0,1,2,3
-      const sectionPos = (t % sectionLen) / sectionLen;  // 0→1
-
-      let sectionEnv;
+      // ===== 大结构包络（A→B→C→D）=====
+      const sectionIndex = Math.min(3, Math.floor(t / sectionLen));
+      const sectionPos = (t % sectionLen) / sectionLen;
+      let bigEnv;
       if (sectionIndex === 0) {
-        // A 段：0.30 → 0.45（小引入）
-        sectionEnv = 0.30 + 0.15 * sectionPos;
+        bigEnv = 0.40 + 0.15 * sectionPos;
       } else if (sectionIndex === 1) {
-        // B 段：0.45 → 0.65（渐强）
-        sectionEnv = 0.45 + 0.20 * sectionPos;
+        bigEnv = 0.55 + 0.20 * sectionPos;
       } else if (sectionIndex === 2) {
-        // C 段：0.65 → 0.85（继续强）
-        sectionEnv = 0.65 + 0.20 * sectionPos;
+        bigEnv = 0.75 + 0.20 * sectionPos;
       } else {
-        // D 段：0.85 → 1.0（前 60%）→ 回落到 0.30（后 40%）
-        if (sectionPos < 0.6) {
-          sectionEnv = 0.85 + 0.15 * (sectionPos / 0.6);
+        if (sectionPos < 0.65) {
+          bigEnv = 0.95 + 0.05 * (sectionPos / 0.65);
         } else {
-          const p = (sectionPos - 0.6) / 0.4;
-          sectionEnv = 1.0 - 0.70 * p;  // 1.0 → 0.30
+          bigEnv = 1.0 - 0.60 * ((sectionPos - 0.65) / 0.35);
         }
       }
 
-      // ===== 段内不规则小浪 =====
-      // 每段的浪频略有不同，让四段听起来不一样
-      const f1 = 0.15 + sectionIndex * 0.025;
-      const f2 = 0.23 + sectionIndex * 0.035;
-      const f3 = 0.37 + sectionIndex * 0.030;
-      const w1 = Math.sin(2 * Math.PI * f1 * t);
-      const w2 = Math.sin(2 * Math.PI * f2 * t + 1.2);
-      const w3 = Math.sin(2 * Math.PI * f3 * t + 2.7);
+      // ===== 浪事件管理 =====
+      if (!waveState.active) {
+        nextWaveIn -= 1 / sr;
+        if (nextWaveIn <= 0) {
+          waveState.active = true;
+          waveState.elapsed = 0;
+          waveState.duration = 2.5 + Math.random() * 2.0;     // 2.5-4.5s
+          waveState.peak = 0.5 + Math.random() * 0.5;         // 0.5-1.0
+          waveState.riseRatio = 0.20 + Math.random() * 0.20;  // 20%-40%
+        }
+      } else {
+        waveState.elapsed += 1 / sr;
+        if (waveState.elapsed >= waveState.duration) {
+          waveState.active = false;
+          nextWaveIn = 0.4 + Math.random() * 1.0;  // 0.4-1.4s 间隔
+        }
+      }
 
-      // 不规则混合（不完全平均，有主次）
-      let surgeRaw = 0.5 + 0.28 * w1 + 0.15 * w2 + 0.08 * w3;
-      surgeRaw = Math.max(0, Math.min(1, surgeRaw));
+      // ===== 当前浪强度（不对称：涌上来快，退下去慢）=====
+      let surge = 0;
+      if (waveState.active) {
+        const p = waveState.elapsed / waveState.duration;
+        if (p < waveState.riseRatio) {
+          const r = p / waveState.riseRatio;
+          surge = Math.pow(r, 1.5) * waveState.peak;
+        } else {
+          const r = (p - waveState.riseRatio) / (1 - waveState.riseRatio);
+          surge = Math.pow(1 - r, 1.4) * waveState.peak;
+        }
+      }
 
-      // 不对称整形：涌上来快，退下去慢
-      const surge = Math.pow(surgeRaw, 1.4);
+      // ===== 动态低通（音色核心）=====
+      // 浪谷：alpha 小 → 截止频率低 → 只有低频"隆隆"
+      // 浪尖：alpha 大 → 截止频率高 → 有"哗哗"的宽带
+      const alpha = 0.025 + 0.14 * surge;
+      const noise = Math.random() * 2 - 1;
+      lp1 += alpha * (noise - lp1);
+      lp2 += alpha * (lp1 - lp2);
+      const hp = noise - lp2;  // 高通成分
 
-      // 小浪包络（0.35 底 + 0.65 浪涌）
-      const innerEnv = 0.35 + 0.65 * surge;
+      // 主体：二阶低通；浪尖时叠加高通泡沫
+      const sample = lp2 + hp * surge * 0.25;
 
-      // 综合包络
-      const totalEnv = sectionEnv * innerEnv;
+      // 综合包络：大结构 × (0.25 底 + 0.75 浪涌)
+      const env = bigEnv * (0.25 + 0.75 * surge);
 
-      // 浪尖泡沫增加
-      const foamBoost = 1.0 + 0.7 * surge;
-      const wave = waterBody + foam * 0.4 * foamBoost;
+      // 首尾短淡入淡出
+      const fadeIn = Math.min(1, pos / (sr * 0.4));
+      const fadeOut = Math.min(1, (len - pos) / (sr * 0.4));
 
-      // 首尾极短淡入淡出（仅 100ms，不影响循环）
-      const fadeIn = Math.min(1, pos / (sr * 0.1));
-      const fadeOut = Math.min(1, (len - pos) / (sr * 0.1));
-
-      data[i] += wave * totalEnv * fadeIn * fadeOut * volume;
+      data[i] += sample * env * fadeIn * fadeOut * volume;
     }
   }
 
@@ -285,8 +296,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 铺海浪声（音量 1.2）============
-  oceanWave(0, totalDuration, 1.2);
+  // ============ 铺海浪声（音量 1.0）============
+  oceanWave(0, totalDuration, 1.0);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
