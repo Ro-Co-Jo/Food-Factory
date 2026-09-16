@@ -1,8 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v21：
-// - C 段海浪大幅降低（0.70 → 0.56）
-// - 主旋律 0.262 → 0.30
-// - 大提琴 0.55/0.34 → 0.78/0.48
+// 方案D改良版 v22：
+// - 大提琴改为持续弓弦（不再指数衰减）
+// - 整体音量提高（归一化 0.55 → 0.85）
+// - C 段海浪峰值 0.56 → 0.42
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -78,6 +78,7 @@ function generateBGM(sr) {
     }
   }
 
+  /** 大提琴：持续弓弦（去掉指数衰减，全程保持音量，仅尾部释放） */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -87,14 +88,16 @@ function generateBGM(sr) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.3));
-      const decay = Math.exp(-pos / (sr * 3.2));
+      // 持续弓弦：前 85% 保持满音量，最后 15% 释放
+      const sustain = pos < len * 0.85 ? 1 : (len - pos) / (len * 0.15);
       const release = Math.min(1, (len - pos) / (sr * 0.8));
+      const env = attack * sustain * release;
       const f = freq * detune;
       const wave =
         Math.sin(2 * Math.PI * f * t) +
         0.25 * Math.sin(2 * Math.PI * f * 2 * t) +
         0.08 * Math.sin(2 * Math.PI * f * 3 * t);
-      data[i] += wave * volume * attack * decay * release;
+      data[i] += wave * volume * env;
     }
   }
 
@@ -167,7 +170,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 海浪：C 段大幅降低（0.70 → 0.56） */
+  /** 海浪：C 段继续降低（0.56 → 0.42） */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -209,21 +212,19 @@ function generateBGM(sr) {
 
       let baseEnv;
       if (sectionIndex === 0) {
-        // A 段：0.35 → 0.52
         baseEnv = 0.35 + 0.17 * sectionPos;
       } else if (sectionIndex === 1) {
-        // B 段：0.52 → 0.68
         baseEnv = 0.52 + 0.16 * sectionPos;
       } else if (sectionIndex === 2) {
-        // C 段：0.55 → 0.56（几乎平的，不再推高峰）
+        // C 段：0.40 → 0.42 → 0.38
         if (sectionPos < 0.7) {
-          baseEnv = 0.55 + 0.01 * (sectionPos / 0.7);   // 0.55 → 0.56
+          baseEnv = 0.40 + 0.02 * (sectionPos / 0.7);
         } else {
-          baseEnv = 0.56 - 0.06 * ((sectionPos - 0.7) / 0.3);  // 0.56 → 0.50
+          baseEnv = 0.42 - 0.04 * ((sectionPos - 0.7) / 0.3);
         }
       } else {
-        // D 段：0.50 → 0.15
-        baseEnv = 0.50 - 0.35 * sectionPos;
+        // D 段：0.38 → 0.12
+        baseEnv = 0.38 - 0.26 * sectionPos;
       }
 
       const bigEnv = baseEnv * (0.55 + 0.55 * innerWave);
@@ -341,7 +342,7 @@ function generateBGM(sr) {
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    // 1. 主旋律：钢琴（0.262 → 0.30）
+    // 1. 主旋律：钢琴
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
@@ -354,7 +355,7 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴（0.55/0.34 → 0.78/0.48）
+    // 3. 大提琴（持续弓弦）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const vol = (b === 1) ? 0.48 : 0.78;
@@ -380,14 +381,14 @@ function generateBGM(sr) {
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
   }
 
-  // 归一化
+  // ===== 归一化：阈值 0.85（原来 0.55）=====
   let max = 0;
   for (let i = 0; i < data.length; i++) {
     const a = Math.abs(data[i]);
     if (a > max) max = a;
   }
-  if (max > 0.55) {
-    const scale = 0.55 / max;
+  if (max > 0.85) {
+    const scale = 0.85 / max;
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
