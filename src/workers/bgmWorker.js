@@ -1,9 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v15：
-// - 竖琴泛音降低（0.065/0.055 → 0.032/0.028）
-// - 弦乐组降低（0.065 → 0.042）
-// - 海浪音量 0.55 → 0.32（退到旋律之下）
-// - 海浪颗粒感降低（alpha 0.020/0.050 → 0.010/0.025）
+// 方案D改良版 v16：
+// - 海浪整段加"入场/出场包络"：前 5 秒静音，5-15 秒渐入，最后 6 秒渐出
+// - 避免点击网页时被海浪吓到
+// - 其他层（钢琴/弦乐/大提琴/竖琴/八音盒/微风）保持不变
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -103,7 +102,6 @@ function generateBGM(sr) {
     cello(startT, freq, dur, volume * 0.35, 0.996);
   }
 
-  /** 竖琴泛音：音量降（0.032 / 0.028） */
   function harpHarmonic(startT, freq, volume) {
     const dur = 2.0;
     const s0 = Math.floor(startT * sr);
@@ -158,9 +156,11 @@ function generateBGM(sr) {
   }
 
   /**
-   * 海浪声 v15：颗粒感降低版
-   * - 涌来低通 alpha 0.020 → 0.010（更闷，几乎只剩低频水声）
-   * - 退去低通 alpha 0.050 → 0.025（去掉沙沙颗粒）
+   * 海浪声 v16：增加整段入场/出场包络
+   * - 前 5 秒完全静音（点击网页不会吓到）
+   * - 5-15 秒从 0 淡入到 1
+   * - 15-24 秒保持 1
+   * - 最后 6 秒从 1 淡出到 0（循环接缝无声）
    */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -186,6 +186,20 @@ function generateBGM(sr) {
       const t = (i - s0) / sr;
       const pos = i - s0;
 
+      // ===== 整段入场/出场包络 =====
+      // 前 5 秒静音，5-15 秒渐入，15-24 秒满，最后 6 秒渐出
+      let globalFade;
+      if (t < 5) {
+        globalFade = 0;
+      } else if (t < 15) {
+        globalFade = Math.pow((t - 5) / 10, 1.3);
+      } else if (t < dur - 6) {
+        globalFade = 1;
+      } else {
+        globalFade = Math.max(0, (dur - t) / 6);
+      }
+
+      // ===== 大结构 =====
       const sectionIndex = Math.min(3, Math.floor(t / sectionLen));
       const sectionPos = (t % sectionLen) / sectionLen;
 
@@ -212,6 +226,7 @@ function generateBGM(sr) {
 
       const bigEnv = baseEnv * (0.55 + 0.55 * innerWave);
 
+      // ===== 浪事件 =====
       if (!wave.active) {
         nextIn -= 1 / sr;
         if (nextIn <= 0) {
@@ -243,13 +258,11 @@ function generateBGM(sr) {
         }
       }
 
-      // ===== 关键：alpha 大幅降低，去掉颗粒感 =====
       const n1 = Math.random() * 2 - 1;
       const n2 = Math.random() * 2 - 1;
-      lpSurge += 0.010 * (n1 - lpSurge);  // 原来是 0.020
-      lpFall += 0.025 * (n2 - lpFall);    // 原来是 0.050
+      lpSurge += 0.010 * (n1 - lpSurge);
+      lpFall += 0.025 * (n2 - lpFall);
 
-      // alpha 降低后信号能量下降，用更大的缩放补偿
       const surgeSample = lpSurge * surgeAmp * 8.0;
       const fallSample = lpFall * fallAmp * 5.0;
       const sample = surgeSample + fallSample;
@@ -257,10 +270,8 @@ function generateBGM(sr) {
       const activity = Math.max(surgeAmp, fallAmp);
       const env = bigEnv * (0.10 + activity * 0.9);
 
-      const fadeIn = Math.min(1, pos / (sr * 0.5));
-      const fadeOut = Math.min(1, (len - pos) / (sr * 0.5));
-
-      data[i] += sample * env * fadeIn * fadeOut * volume;
+      // ===== 最终累加：把 globalFade 乘进来 =====
+      data[i] += sample * env * globalFade * volume;
     }
   }
 
@@ -321,7 +332,7 @@ function generateBGM(sr) {
   ];
 
   // ============ 背景：海浪 + 微风 ============
-  oceanWave(0, totalDuration, 0.32);   // 海浪音量 0.32
+  oceanWave(0, totalDuration, 0.32);
   breeze(0, totalDuration, 0.30);
 
   // ============ 合成 ============
@@ -335,7 +346,7 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
     }
 
-    // 2. 弦乐组（音量 0.042）
+    // 2. 弦乐组
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
@@ -350,7 +361,7 @@ function generateBGM(sr) {
       celloSection(barStart, chords[b].root * 2, barDuration * 0.95, vol);
     }
 
-    // 4. 竖琴泛音（音量 0.032 / 0.028）
+    // 4. 竖琴泛音
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const c = chords[b];
