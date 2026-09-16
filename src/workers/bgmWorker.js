@@ -1,9 +1,9 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v12：
-// - 海浪声：涌来 + 退去 两阶段独立处理
-// - 退去用高通噪声做"哗啦哗啦"颗粒
-// - 恢复微风层
-// - 海浪音量降到 0.5，大提琴提升到 0.55/0.32
+// 方案D改良版 v13：
+// - 海浪：全部低通（无高通颗粒），涌来+退去双包络
+// - 微风：alpha 0.015，音量 0.30
+// - 大提琴：0.75 / 0.45
+// - 海浪音量 0.55
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -137,8 +137,7 @@ function generateBGM(sr) {
   }
 
   /**
-   * 微风：独立的低通白噪声层，缓慢起伏
-   * 一直持续，不受浪事件影响
+   * 微风：低通白噪声 + 缓慢起伏（alpha 加大，音量提升）
    */
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -146,27 +145,28 @@ function generateBGM(sr) {
     const len = s1 - s0;
     if (len <= 0) return;
     let lp = 0;
-    const alpha = 0.006;
+    const alpha = 0.015;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const noise = Math.random() * 2 - 1;
       lp += alpha * (noise - lp);
-      // 缓慢的强弱起伏
-      const env = 0.55 + 0.45 * Math.sin(2 * Math.PI * 0.06 * t) * Math.sin(2 * Math.PI * 0.11 * t + 0.7);
-      // 首尾长淡入淡出（3秒）
+      // 缓慢起伏：两个不同频率的正弦叠加，让强弱变化不规律
+      const env =
+        0.50 +
+        0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
+        0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
       const fadeIn = Math.min(1, pos / (sr * 3.0));
       const fadeOut = Math.min(1, (len - pos) / (sr * 3.0));
-      data[i] += lp * env * fadeIn * fadeOut * volume;
+      data[i] += lp * env * fadeIn * fadeOut * volume * 15;
     }
   }
 
   /**
-   * 海浪声（涌来 + 退去 双阶段）：
-   * - 涌来：柔和低通噪声，缓慢渐强（pow 1.8，先慢后快）
-   * - 退去：独立的高通噪声（"哗啦哗啦"颗粒），sin 包络在退去中间最强
-   * - 浪事件随机：时长 3.5-6s / 峰值 0.45-0.75 / 上升比 25%-40% / 间隔 1.2-3s
-   * - 大结构 A→B→C→D→回落
+   * 海浪声（涌来 + 退去 双包络，全部低通）：
+   * - 涌来：低频低通（alpha 0.020），柔和渐强
+   * - 退去：稍高频率低通（alpha 0.050），在涌来衰减时达到峰值，产生"沙——"的退水感
+   * - 两路都是低通，没有高通颗粒
    */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -174,10 +174,8 @@ function generateBGM(sr) {
     const len = s1 - s0;
     if (len <= 0) return;
 
-    // 涌来噪声：低通状态
-    let lpSurge = 0;
-    // 退去噪声：低通状态（用于差分得到高通）
-    let lpFall = 0;
+    let lpSurge = 0;   // 涌来的低通状态
+    let lpFall = 0;    // 退去的低通状态
 
     let wave = {
       active: false,
@@ -198,18 +196,12 @@ function generateBGM(sr) {
       const sectionIndex = Math.min(3, Math.floor(t / sectionLen));
       const sectionPos = (t % sectionLen) / sectionLen;
       let bigEnv;
-      if (sectionIndex === 0) {
-        bigEnv = 0.50 + 0.10 * sectionPos;
-      } else if (sectionIndex === 1) {
-        bigEnv = 0.60 + 0.10 * sectionPos;
-      } else if (sectionIndex === 2) {
-        bigEnv = 0.70 + 0.15 * sectionPos;
-      } else {
-        if (sectionPos < 0.6) {
-          bigEnv = 0.85 + 0.10 * (sectionPos / 0.6);
-        } else {
-          bigEnv = 0.95 - 0.45 * ((sectionPos - 0.6) / 0.4);
-        }
+      if (sectionIndex === 0) bigEnv = 0.45 + 0.10 * sectionPos;
+      else if (sectionIndex === 1) bigEnv = 0.55 + 0.15 * sectionPos;
+      else if (sectionIndex === 2) bigEnv = 0.70 + 0.15 * sectionPos;
+      else {
+        if (sectionPos < 0.6) bigEnv = 0.85 + 0.10 * (sectionPos / 0.6);
+        else bigEnv = 0.95 - 0.45 * ((sectionPos - 0.6) / 0.4);
       }
 
       // ===== 浪事件管理 =====
@@ -218,55 +210,49 @@ function generateBGM(sr) {
         if (nextIn <= 0) {
           wave.active = true;
           wave.elapsed = 0;
-          wave.duration = 3.5 + Math.random() * 2.5;   // 3.5-6s
-          wave.peak = 0.45 + Math.random() * 0.30;     // 0.45-0.75
-          wave.riseRatio = 0.25 + Math.random() * 0.15;
+          wave.duration = 4.0 + Math.random() * 2.5;   // 4-6.5s
+          wave.peak = 0.5 + Math.random() * 0.3;       // 0.5-0.8
+          wave.riseRatio = 0.30 + Math.random() * 0.15;
         }
       } else {
         wave.elapsed += 1 / sr;
         if (wave.elapsed >= wave.duration) {
           wave.active = false;
-          nextIn = 1.2 + Math.random() * 1.8;
+          nextIn = 1.5 + Math.random() * 2.0;
         }
       }
 
-      // ===== 涌来强度 / 退去强度 =====
-      let surge = 0;
-      let backwash = 0;
+      // ===== 涌来/退去 振幅 =====
+      let surgeAmp = 0;
+      let fallAmp = 0;
       if (wave.active) {
         const p = wave.elapsed / wave.duration;
         if (p < wave.riseRatio) {
           const r = p / wave.riseRatio;
-          // 涌来：先慢后快，柔和渐强
-          surge = Math.pow(r, 1.8) * wave.peak;
+          surgeAmp = Math.pow(r, 1.6) * wave.peak;
         } else {
           const r = (p - wave.riseRatio) / (1 - wave.riseRatio);
-          // 涌来缓慢退去
-          surge = Math.pow(1 - r, 1.5) * wave.peak;
-          // 退水：sin 包络，在退去中间最强
-          backwash = Math.sin(r * Math.PI) * wave.peak;
+          // 涌来缓慢衰减
+          surgeAmp = Math.pow(1 - r, 1.5) * wave.peak;
+          // 退去：在涌来衰减的开始阶段迅速上升，然后自然消失
+          fallAmp = Math.sin(Math.PI * Math.min(1, r * 1.4)) * wave.peak * 0.85;
         }
       }
 
-      // ===== 涌来音色：柔和低通 =====
-      const noise1 = Math.random() * 2 - 1;
-      const alphaSurge = 0.012 + 0.05 * surge;
-      lpSurge += alphaSurge * (noise1 - lpSurge);
+      // ===== 两路低通滤波 =====
+      const n1 = Math.random() * 2 - 1;
+      const n2 = Math.random() * 2 - 1;
+      lpSurge += 0.020 * (n1 - lpSurge);   // 低频 → 涌来
+      lpFall += 0.050 * (n2 - lpFall);     // 稍高频 → 退去
 
-      // ===== 退去音色：高通颗粒 =====
-      const noise2 = Math.random() * 2 - 1;
-      const alphaFall = 0.08 + 0.20 * backwash;
-      lpFall += alphaFall * (noise2 - lpFall);
-      const fallGrain = noise2 - lpFall;  // 高通成分
-
-      // ===== 混合 =====
-      const surgeSample = lpSurge * surge * 1.2;
-      const fallSample = fallGrain * backwash * 0.55;
+      // ===== 采样（缩放补偿低通损失）=====
+      const surgeSample = lpSurge * surgeAmp * 4.5;
+      const fallSample = lpFall * fallAmp * 2.0;
       const sample = surgeSample + fallSample;
 
       // ===== 综合包络 =====
-      const activity = Math.max(surge * 0.8, backwash * 1.1);
-      const env = bigEnv * (0.15 + activity);
+      const activity = Math.max(surgeAmp, fallAmp);
+      const env = bigEnv * (0.10 + activity * 0.9);
 
       const fadeIn = Math.min(1, pos / (sr * 0.5));
       const fadeOut = Math.min(1, (len - pos) / (sr * 0.5));
@@ -332,8 +318,8 @@ function generateBGM(sr) {
   ];
 
   // ============ 背景：海浪 + 微风 ============
-  oceanWave(0, totalDuration, 0.5);   // 海浪音量 0.5
-  breeze(0, totalDuration, 0.12);    // 微风音量 0.12
+  oceanWave(0, totalDuration, 0.55);
+  breeze(0, totalDuration, 0.30);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
@@ -354,10 +340,10 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴（音量提升到 0.55/0.32）
+    // 3. 大提琴（音量提升到 0.75/0.45）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.32 : 0.55;
+      const vol = (b === 1) ? 0.45 : 0.75;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
@@ -369,7 +355,7 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒：A/B/D 0.026，C 0.013
+    // 5. 八音盒
     const boxPairs = [
       [F.C6, F.E6, 0.026],
       [F.B5, F.D6, 0.026],
