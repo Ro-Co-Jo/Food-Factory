@@ -1,9 +1,9 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v13：
-// - 海浪：全部低通（无高通颗粒），涌来+退去双包络
-// - 微风：alpha 0.015，音量 0.30
-// - 大提琴：0.75 / 0.45
-// - 海浪音量 0.55
+// 方案D改良版 v14：
+// - 海浪大结构每段内部加入不规则小浪（不再单调推上来）
+// - A弱→强，B比A强，C更强但准备回落，D渐弱到越来越弱
+// - 大提琴升八度（root * 2）
+// - 弦乐 0.065，竖琴 0.065/0.055
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -136,9 +136,6 @@ function generateBGM(sr) {
     }
   }
 
-  /**
-   * 微风：低通白噪声 + 缓慢起伏（alpha 加大，音量提升）
-   */
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -151,7 +148,6 @@ function generateBGM(sr) {
       const pos = i - s0;
       const noise = Math.random() * 2 - 1;
       lp += alpha * (noise - lp);
-      // 缓慢起伏：两个不同频率的正弦叠加，让强弱变化不规律
       const env =
         0.50 +
         0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
@@ -163,10 +159,9 @@ function generateBGM(sr) {
   }
 
   /**
-   * 海浪声（涌来 + 退去 双包络，全部低通）：
-   * - 涌来：低频低通（alpha 0.020），柔和渐强
-   * - 退去：稍高频率低通（alpha 0.050），在涌来衰减时达到峰值，产生"沙——"的退水感
-   * - 两路都是低通，没有高通颗粒
+   * 海浪声 v14：
+   * - 大结构每段内部加入不规则小浪（不再单调推上来）
+   * - A 弱→强，B 比 A 强，C 更强但准备回落，D 渐弱到越来越弱
    */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -174,8 +169,8 @@ function generateBGM(sr) {
     const len = s1 - s0;
     if (len <= 0) return;
 
-    let lpSurge = 0;   // 涌来的低通状态
-    let lpFall = 0;    // 退去的低通状态
+    let lpSurge = 0;
+    let lpFall = 0;
 
     let wave = {
       active: false,
@@ -192,17 +187,40 @@ function generateBGM(sr) {
       const t = (i - s0) / sr;
       const pos = i - s0;
 
-      // ===== 大结构 A→B→C→D→回落 =====
+      // ===== 大结构：每段内部有波动 =====
       const sectionIndex = Math.min(3, Math.floor(t / sectionLen));
       const sectionPos = (t % sectionLen) / sectionLen;
-      let bigEnv;
-      if (sectionIndex === 0) bigEnv = 0.45 + 0.10 * sectionPos;
-      else if (sectionIndex === 1) bigEnv = 0.55 + 0.15 * sectionPos;
-      else if (sectionIndex === 2) bigEnv = 0.70 + 0.15 * sectionPos;
-      else {
-        if (sectionPos < 0.6) bigEnv = 0.85 + 0.10 * (sectionPos / 0.6);
-        else bigEnv = 0.95 - 0.45 * ((sectionPos - 0.6) / 0.4);
+
+      // 两层不规则波动叠加，让每段内部有多次小浪
+      const innerWave1 = Math.sin(2 * Math.PI * t / 4.7);
+      const innerWave2 = Math.sin(2 * Math.PI * t / 7.3 + 1.3);
+      const innerWave3 = Math.sin(2 * Math.PI * t / 11.0 + 0.5);
+      const innerWave =
+        0.55 + 0.22 * innerWave1 + 0.15 * innerWave2 + 0.08 * innerWave3;
+      // innerWave 范围约 0.10 ~ 1.00
+
+      // 每段基础走势
+      let baseEnv;
+      if (sectionIndex === 0) {
+        // A 段：0.35 → 0.52，小引入
+        baseEnv = 0.35 + 0.17 * sectionPos;
+      } else if (sectionIndex === 1) {
+        // B 段：0.52 → 0.68，比 A 强
+        baseEnv = 0.52 + 0.16 * sectionPos;
+      } else if (sectionIndex === 2) {
+        // C 段：0.68 → 0.85，前 70% 渐强，后 30% 准备回落
+        if (sectionPos < 0.7) {
+          baseEnv = 0.68 + 0.17 * (sectionPos / 0.7);
+        } else {
+          baseEnv = 0.85 - 0.10 * ((sectionPos - 0.7) / 0.3);
+        }
+      } else {
+        // D 段：0.75 → 0.25，渐弱到越来越弱
+        baseEnv = 0.75 - 0.50 * sectionPos;
       }
+
+      // 综合大结构（乘上内部波动）
+      const bigEnv = baseEnv * (0.55 + 0.55 * innerWave);
 
       // ===== 浪事件管理 =====
       if (!wave.active) {
@@ -210,8 +228,8 @@ function generateBGM(sr) {
         if (nextIn <= 0) {
           wave.active = true;
           wave.elapsed = 0;
-          wave.duration = 4.0 + Math.random() * 2.5;   // 4-6.5s
-          wave.peak = 0.5 + Math.random() * 0.3;       // 0.5-0.8
+          wave.duration = 4.0 + Math.random() * 2.5;
+          wave.peak = 0.5 + Math.random() * 0.3;
           wave.riseRatio = 0.30 + Math.random() * 0.15;
         }
       } else {
@@ -232,9 +250,7 @@ function generateBGM(sr) {
           surgeAmp = Math.pow(r, 1.6) * wave.peak;
         } else {
           const r = (p - wave.riseRatio) / (1 - wave.riseRatio);
-          // 涌来缓慢衰减
           surgeAmp = Math.pow(1 - r, 1.5) * wave.peak;
-          // 退去：在涌来衰减的开始阶段迅速上升，然后自然消失
           fallAmp = Math.sin(Math.PI * Math.min(1, r * 1.4)) * wave.peak * 0.85;
         }
       }
@@ -242,12 +258,12 @@ function generateBGM(sr) {
       // ===== 两路低通滤波 =====
       const n1 = Math.random() * 2 - 1;
       const n2 = Math.random() * 2 - 1;
-      lpSurge += 0.020 * (n1 - lpSurge);   // 低频 → 涌来
-      lpFall += 0.050 * (n2 - lpFall);     // 稍高频 → 退去
+      lpSurge += 0.020 * (n1 - lpSurge);
+      lpFall += 0.050 * (n2 - lpFall);
 
-      // ===== 采样（缩放补偿低通损失）=====
+      // ===== 采样 =====
       const surgeSample = lpSurge * surgeAmp * 4.5;
-      const fallSample = lpFall * fallAmp * 2.0;
+      const fallSample = lpFall * fallAmp * 2.5;
       const sample = surgeSample + fallSample;
 
       // ===== 综合包络 =====
@@ -332,27 +348,27 @@ function generateBGM(sr) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
     }
 
-    // 2. 弦乐组
+    // 2. 弦乐组（音量 0.065）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
-        stringEnsemble(barStart, note, barDuration * 0.95, 0.045);
+        stringEnsemble(barStart, note, barDuration * 0.95, 0.065);
       }
     }
 
-    // 3. 大提琴（音量提升到 0.75/0.45）
+    // 3. 大提琴（升八度 root * 2）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const vol = (b === 1) ? 0.45 : 0.75;
-      celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
+      celloSection(barStart, chords[b].root * 2, barDuration * 0.95, vol);
     }
 
-    // 4. 竖琴泛音
+    // 4. 竖琴泛音（音量 0.065 / 0.055）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const c = chords[b];
-      harpHarmonic(barStart + 1.5 * beat, c.notes[0] * 2, 0.045);
-      harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
+      harpHarmonic(barStart + 1.5 * beat, c.notes[0] * 2, 0.065);
+      harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.055);
     }
 
     // 5. 八音盒
