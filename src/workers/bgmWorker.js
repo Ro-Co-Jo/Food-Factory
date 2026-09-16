@@ -1,8 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v6：
-// - 八音盒主双音 0.022 → 0.015
-// - 大提琴 0.14/0.08 → 0.24/0.14
-// - 风声 0.55 → 1.3，alpha 0.0025 → 0.005
+// 方案D改良版 v7：
+// - 八音盒主双音 0.015 → 0.020，C段单独降为 0.013
+// - 大提琴 0.24/0.14 → 0.35/0.20，每小节都发声，decay 延长
+// - 风声 1.3 → 2.8，alpha 0.005 → 0.008
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -77,6 +77,7 @@ function generateBGM(sr) {
     }
   }
 
+  /** 大提琴：decay 延长到 3.2 秒，让尾音更长 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -86,7 +87,7 @@ function generateBGM(sr) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.3));
-      const decay = Math.exp(-pos / (sr * 2.2));
+      const decay = Math.exp(-pos / (sr * 3.2));
       const release = Math.min(1, (len - pos) / (sr * 0.8));
       const f = freq * detune;
       const wave =
@@ -134,14 +135,14 @@ function generateBGM(sr) {
     }
   }
 
-  /** 晚风风声：低通白噪声 + 缓慢包络（alpha 提升到 0.005，稍微明亮） */
+  /** 晚风风声：音量 2.8，alpha 0.008 */
   function windNoise(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
     let lp = 0;
-    const alpha = 0.005;
+    const alpha = 0.008;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -214,8 +215,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 先铺风声（整段背景，音量 1.3）============
-  windNoise(0, totalDuration, 1.3);
+  // ============ 先铺风声（音量 2.8）============
+  windNoise(0, totalDuration, 2.8);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
@@ -236,10 +237,10 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴（音量提升到 0.24 / 0.14）
+    // 3. 大提琴：每小节都发声（音量 0.35/0.20）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.14 : 0.24;
+      const vol = (b === 1) ? 0.20 : 0.35;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
@@ -251,15 +252,15 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒主双音（音量降到 0.015）
+    // 5. 八音盒主双音：整体 0.020，C 段（E6+G6）单独降到 0.013
     const boxPairs = [
-      [F.C6, F.E6],
-      [F.B5, F.D6],
-      [F.E6, F.G6],
-      [F.C6, F.E6],
+      [F.C6, F.E6, 0.020],  // A：大三度
+      [F.B5, F.D6, 0.020],  // B：小三度
+      [F.E6, F.G6, 0.013],  // C：小三度（音高最高，单独降低）
+      [F.C6, F.E6, 0.020],  // D：大三度
     ];
-    const [b1, b2] = boxPairs[p];
-    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, 0.015);
+    const [b1, b2, boxVol] = boxPairs[p];
+    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
   }
 
   // 归一化
