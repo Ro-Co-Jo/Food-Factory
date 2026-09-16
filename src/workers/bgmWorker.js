@@ -1,9 +1,7 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v23：
-// - 弦乐去嗡嗡：3层 → 2层，失谐 ±0.003 → ±0.0006
-// - 大提琴去嗡嗡：7把 → 3把，失谐 ±0.012 → ±0.0015，谐波减少
-// - C 段海浪 0.42 → 0.20（减半）
-// - 归一化 0.85 → 1.0
+// 方案D改良版 v24：
+// - 修复 C 段海浪降不下来的 bug（改 globalFade 曲线，让 C 段真正降下来）
+// - 其他层不变
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -29,7 +27,27 @@ function generateBGM(sr) {
     C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98,
   };
 
-  // ============ 音色 ============
+  /** 新的 globalFade：跟随大结构，C 段真正降下来 */
+  function getGlobalFade(t, dur) {
+    if (t < 5) {
+      return 0;
+    } else if (t < 8) {
+      // 5-8s：渐入 0 → 0.35
+      return ((t - 5) / 3) * 0.35;
+    } else if (t < 15) {
+      // 8-15s：0.35 → 0.65（B 段渐强）
+      return 0.35 + ((t - 8) / 7) * 0.30;
+    } else if (t < 22.5) {
+      // 15-22.5s：0.65 → 0.22（C 段大幅下降）
+      return 0.65 - ((t - 15) / 7.5) * 0.43;
+    } else if (t < 27) {
+      // 22.5-27s：0.22 → 0.10（D 段继续降）
+      return 0.22 - ((t - 22.5) / 4.5) * 0.12;
+    } else {
+      // 27-30s：0.10 → 0（渐出）
+      return Math.max(0, 0.10 * (dur - t) / 3);
+    }
+  }
 
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
@@ -56,14 +74,12 @@ function generateBGM(sr) {
     }
   }
 
-  /** 弦乐组：2 层失谐 ±0.0006（拍频几乎听不见） */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
     const s1 = Math.floor((startT + actualDur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    // 从 3 层减到 2 层，失谐从 ±0.0015 收窄到 ±0.0006
     const detunes = [1.0, 1.0006];
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
@@ -75,13 +91,11 @@ function generateBGM(sr) {
       for (const d of detunes) {
         wave += Math.sin(2 * Math.PI * freq * d * t);
         wave += 0.06 * Math.sin(2 * Math.PI * freq * 2 * d * t);
-        // 去掉 3 次谐波，避免高频刺耳和嗡嗡
       }
-      data[i] += wave * volume * env * 0.5;  // 2层，系数从 0.33 调到 0.5
+      data[i] += wave * volume * env * 0.5;
     }
   }
 
-  /** 大提琴：3 把叠奏，失谐收窄 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -98,12 +112,10 @@ function generateBGM(sr) {
       const wave =
         Math.sin(2 * Math.PI * f * t) +
         0.18 * Math.sin(2 * Math.PI * f * 2 * t);
-      // 去掉 3 次谐波
       data[i] += wave * volume * env;
     }
   }
 
-  /** 3 把大提琴（原来是 7 把） */
   function celloSection(startT, freq, dur, volume) {
     cello(startT, freq, dur, volume * 0.45, 1.0000);
     cello(startT, freq, dur, volume * 0.35, 1.0015);
@@ -143,6 +155,7 @@ function generateBGM(sr) {
     }
   }
 
+  /** 微风：用新的 globalFade */
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -159,17 +172,12 @@ function generateBGM(sr) {
         0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
         0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
 
-      let globalFade;
-      if (t < 8) globalFade = 0;
-      else if (t < 18) globalFade = Math.pow((t - 8) / 10, 1.3);
-      else if (t < dur - 5) globalFade = 1;
-      else globalFade = Math.max(0, (dur - t) / 5);
-
+      const globalFade = getGlobalFade(t, dur);
       data[i] += lp * env * globalFade * volume * 15;
     }
   }
 
-  /** 海浪：C 段减半（0.42 → 0.20） */
+  /** 海浪：用新的 globalFade，C 段真正降下来 */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -194,11 +202,8 @@ function generateBGM(sr) {
       const t = (i - s0) / sr;
       const pos = i - s0;
 
-      let globalFade;
-      if (t < 8) globalFade = 0;
-      else if (t < 18) globalFade = Math.pow((t - 8) / 10, 1.3);
-      else if (t < dur - 5) globalFade = 1;
-      else globalFade = Math.max(0, (dur - t) / 5);
+      // ===== 新的 globalFade，跟随大结构 =====
+      const globalFade = getGlobalFade(t, dur);
 
       const sectionIndex = Math.min(3, Math.floor(t / sectionLen));
       const sectionPos = (t % sectionLen) / sectionLen;
@@ -209,22 +214,12 @@ function generateBGM(sr) {
       const innerWave =
         0.55 + 0.22 * innerWave1 + 0.15 * innerWave2 + 0.08 * innerWave3;
 
+      // baseEnv 改成简化版：只做每段内部的轻微起伏
       let baseEnv;
-      if (sectionIndex === 0) {
-        baseEnv = 0.35 + 0.17 * sectionPos;
-      } else if (sectionIndex === 1) {
-        baseEnv = 0.52 + 0.16 * sectionPos;
-      } else if (sectionIndex === 2) {
-        // C 段：0.19 → 0.20 → 0.18（原 0.40 → 0.42 → 0.38，减半）
-        if (sectionPos < 0.7) {
-          baseEnv = 0.19 + 0.01 * (sectionPos / 0.7);
-        } else {
-          baseEnv = 0.20 - 0.02 * ((sectionPos - 0.7) / 0.3);
-        }
-      } else {
-        // D 段：0.18 → 0.06
-        baseEnv = 0.18 - 0.12 * sectionPos;
-      }
+      if (sectionIndex === 0) baseEnv = 0.60;
+      else if (sectionIndex === 1) baseEnv = 0.70;
+      else if (sectionIndex === 2) baseEnv = 0.55;
+      else baseEnv = 0.45;
 
       const bigEnv = baseEnv * (0.55 + 0.55 * innerWave);
 
@@ -331,22 +326,18 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 背景：海浪 + 微风 ============
   oceanWave(0, totalDuration, 0.20);
   breeze(0, totalDuration, 0.30);
 
-  // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
     const phraseStart = p * 3 * barDuration;
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    // 1. 主旋律：钢琴
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 弦乐组
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       for (const note of chords[b].notes) {
@@ -354,14 +345,12 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴（3 把）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const vol = (b === 1) ? 0.48 : 0.78;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
-    // 4. 竖琴
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const c = chords[b];
@@ -369,7 +358,6 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2], 0.018);
     }
 
-    // 5. 八音盒
     const boxPairs = [
       [F.C6, F.E6, 0.020],
       [F.B5, F.D6, 0.020],
@@ -380,7 +368,6 @@ function generateBGM(sr) {
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
   }
 
-  // ===== 归一化：阈值 1.0（原来 0.85）=====
   let max = 0;
   for (let i = 0; i < data.length; i++) {
     const a = Math.abs(data[i]);
