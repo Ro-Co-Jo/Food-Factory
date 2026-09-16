@@ -1,8 +1,9 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v22：
-// - 大提琴改为持续弓弦（不再指数衰减）
-// - 整体音量提高（归一化 0.55 → 0.85）
-// - C 段海浪峰值 0.56 → 0.42
+// 方案D改良版 v23：
+// - 弦乐去嗡嗡：3层 → 2层，失谐 ±0.003 → ±0.0006
+// - 大提琴去嗡嗡：7把 → 3把，失谐 ±0.012 → ±0.0015，谐波减少
+// - C 段海浪 0.42 → 0.20（减半）
+// - 归一化 0.85 → 1.0
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -55,13 +56,15 @@ function generateBGM(sr) {
     }
   }
 
+  /** 弦乐组：2 层失谐 ±0.0006（拍频几乎听不见） */
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
     const s1 = Math.floor((startT + actualDur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    const detunes = [1.0, 1.0015, 0.9985];
+    // 从 3 层减到 2 层，失谐从 ±0.0015 收窄到 ±0.0006
+    const detunes = [1.0, 1.0006];
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -71,14 +74,14 @@ function generateBGM(sr) {
       let wave = 0;
       for (const d of detunes) {
         wave += Math.sin(2 * Math.PI * freq * d * t);
-        wave += 0.08 * Math.sin(2 * Math.PI * freq * 2 * d * t);
-        wave += 0.02 * Math.sin(2 * Math.PI * freq * 3 * d * t);
+        wave += 0.06 * Math.sin(2 * Math.PI * freq * 2 * d * t);
+        // 去掉 3 次谐波，避免高频刺耳和嗡嗡
       }
-      data[i] += wave * volume * env * 0.33;
+      data[i] += wave * volume * env * 0.5;  // 2层，系数从 0.33 调到 0.5
     }
   }
 
-  /** 大提琴：持续弓弦（去掉指数衰减，全程保持音量，仅尾部释放） */
+  /** 大提琴：3 把叠奏，失谐收窄 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -88,27 +91,23 @@ function generateBGM(sr) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.3));
-      // 持续弓弦：前 85% 保持满音量，最后 15% 释放
       const sustain = pos < len * 0.85 ? 1 : (len - pos) / (len * 0.15);
       const release = Math.min(1, (len - pos) / (sr * 0.8));
       const env = attack * sustain * release;
       const f = freq * detune;
       const wave =
         Math.sin(2 * Math.PI * f * t) +
-        0.25 * Math.sin(2 * Math.PI * f * 2 * t) +
-        0.08 * Math.sin(2 * Math.PI * f * 3 * t);
+        0.18 * Math.sin(2 * Math.PI * f * 2 * t);
+      // 去掉 3 次谐波
       data[i] += wave * volume * env;
     }
   }
 
+  /** 3 把大提琴（原来是 7 把） */
   function celloSection(startT, freq, dur, volume) {
-    cello(startT, freq, dur, volume * 0.24, 1.000);
-    cello(startT, freq, dur, volume * 0.22, 1.004);
-    cello(startT, freq, dur, volume * 0.22, 0.996);
-    cello(startT, freq, dur, volume * 0.18, 1.008);
-    cello(startT, freq, dur, volume * 0.18, 0.992);
-    cello(startT, freq, dur, volume * 0.15, 1.012);
-    cello(startT, freq, dur, volume * 0.15, 0.988);
+    cello(startT, freq, dur, volume * 0.45, 1.0000);
+    cello(startT, freq, dur, volume * 0.35, 1.0015);
+    cello(startT, freq, dur, volume * 0.35, 0.9985);
   }
 
   function harpHarmonic(startT, freq, volume) {
@@ -170,7 +169,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 海浪：C 段继续降低（0.56 → 0.42） */
+  /** 海浪：C 段减半（0.42 → 0.20） */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -216,15 +215,15 @@ function generateBGM(sr) {
       } else if (sectionIndex === 1) {
         baseEnv = 0.52 + 0.16 * sectionPos;
       } else if (sectionIndex === 2) {
-        // C 段：0.40 → 0.42 → 0.38
+        // C 段：0.19 → 0.20 → 0.18（原 0.40 → 0.42 → 0.38，减半）
         if (sectionPos < 0.7) {
-          baseEnv = 0.40 + 0.02 * (sectionPos / 0.7);
+          baseEnv = 0.19 + 0.01 * (sectionPos / 0.7);
         } else {
-          baseEnv = 0.42 - 0.04 * ((sectionPos - 0.7) / 0.3);
+          baseEnv = 0.20 - 0.02 * ((sectionPos - 0.7) / 0.3);
         }
       } else {
-        // D 段：0.38 → 0.12
-        baseEnv = 0.38 - 0.26 * sectionPos;
+        // D 段：0.18 → 0.06
+        baseEnv = 0.18 - 0.12 * sectionPos;
       }
 
       const bigEnv = baseEnv * (0.55 + 0.55 * innerWave);
@@ -355,7 +354,7 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴（持续弓弦）
+    // 3. 大提琴（3 把）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const vol = (b === 1) ? 0.48 : 0.78;
@@ -381,14 +380,14 @@ function generateBGM(sr) {
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
   }
 
-  // ===== 归一化：阈值 0.85（原来 0.55）=====
+  // ===== 归一化：阈值 1.0（原来 0.85）=====
   let max = 0;
   for (let i = 0; i < data.length; i++) {
     const a = Math.abs(data[i]);
     if (a > max) max = a;
   }
-  if (max > 0.85) {
-    const scale = 0.85 / max;
+  if (max > 1.0) {
+    const scale = 1.0 / max;
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
