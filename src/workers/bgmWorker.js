@@ -1,7 +1,10 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v24：
-// - 修复 C 段海浪降不下来的 bug（改 globalFade 曲线，让 C 段真正降下来）
-// - 其他层不变
+// 方案D改良版 v27：两遍式扩展 + 长笛副旋律
+// 总长 75s：
+//   0-30s    第一遍 ABCD（轻）
+//   30-37.5s 间奏（海浪+竖琴）
+//   37.5-67.5s 第二遍 ABCD（全乐器+长笛）
+//   67.5-75s 尾奏（钢琴+长笛渐弱）
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -11,11 +14,18 @@ self.onmessage = function (e) {
 
 function generateBGM(sr) {
   const bpm = 96;
-  const beat = 60 / bpm;
-  const barDuration = 4 * beat;
-  const totalBars = 12;
-  const totalDuration = totalBars * barDuration;
-  const length = Math.floor(sr * totalDuration);
+  const beat = 60 / bpm;                    // 0.625s
+  const barDuration = 4 * beat;             // 2.5s（1 小节）
+  const phraseDuration = 3 * barDuration;   // 7.5s（1 句 = 3 小节）
+
+  // 结构时间点
+  const FIRST_START  = 0;       // 第一遍开始
+  const INTERLUDE    = 30;      // 间奏开始
+  const SECOND_START = 37.5;    // 第二遍开始
+  const OUTRO_START  = 67.5;    // 尾奏开始
+  const TOTAL        = 75;      // 总长
+
+  const length = Math.floor(sr * TOTAL);
   const data = new Float32Array(length);
 
   const F = {
@@ -27,27 +37,7 @@ function generateBGM(sr) {
     C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98,
   };
 
-  /** globalFade v26：整体 +0.03，前 5 秒仍静音 */
-  function getGlobalFade(t, dur) {
-    if (t < 5) {
-      return 0;
-    } else if (t < 7.5) {
-      // A 段：0 → 0.08（原 0.05 + 0.03）
-      return ((t - 5) / 2.5) * 0.08;
-    } else if (t < 15) {
-      // B 段：0.08 → 0.28（原 0.25 + 0.03）
-      return 0.08 + ((t - 7.5) / 7.5) * 0.20;
-    } else if (t < 22.5) {
-      // C 段：0.28 → 0.215（原 0.185 + 0.03）
-      return 0.28 - ((t - 15) / 7.5) * 0.065;
-    } else if (t < 27) {
-      // D 段：0.215 → 0.11（原 0.08 + 0.03）
-      return 0.215 - ((t - 22.5) / 4.5) * 0.105;
-    } else {
-      // 27-30s：0.11 → 0
-      return Math.max(0, 0.11 * (dur - t) / 3);
-    }
-  }
+  // ==================== 音色 ====================
 
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
@@ -71,6 +61,30 @@ function generateBGM(sr) {
         0.008 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
       const release = Math.min(1, (len - pos) / (sr * 0.7));
       data[i] += wave * volume * vf * attack * release;
+    }
+  }
+
+  /** 长笛：副旋律，轻微颤音，柔和的吹奏感 */
+  function flute(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.12));
+      const sustain = pos < len * 0.82 ? 1 : (len - pos) / (len * 0.18);
+      const release = Math.min(1, (len - pos) / (sr * 0.35));
+      const env = attack * sustain * release;
+      // 轻微颤音
+      const vib = 1 + 0.0035 * Math.sin(2 * Math.PI * 5.2 * t);
+      const f = freq * vib;
+      const wave =
+        Math.sin(2 * Math.PI * f * t) +
+        0.15 * Math.sin(2 * Math.PI * f * 2 * t) +
+        0.04 * Math.sin(2 * Math.PI * f * 3 * t);
+      data[i] += wave * volume * env;
     }
   }
 
@@ -155,7 +169,20 @@ function generateBGM(sr) {
     }
   }
 
-  /** 微风：用新的 globalFade */
+  /** globalFade：按大结构设计 */
+  function getGlobalFade(t) {
+    if (t < 5) return 0;
+    else if (t < 7.5) return ((t - 5) / 2.5) * 0.08;
+    else if (t < 15) return 0.08 + ((t - 7.5) / 7.5) * 0.20;
+    else if (t < 22.5) return 0.28 - ((t - 15) / 7.5) * 0.065;
+    else if (t < 30) return 0.215 - ((t - 22.5) / 7.5) * 0.005;
+    else if (t < 37.5) return 0.21 + ((t - 30) / 7.5) * 0.07;
+    else if (t < 60) return 0.28 + ((t - 37.5) / 22.5) * 0.07;
+    else if (t < 67.5) return 0.35 - ((t - 60) / 7.5) * 0.07;
+    else if (t < 72) return 0.28 - ((t - 67.5) / 4.5) * 0.20;
+    else return Math.max(0, 0.08 * (TOTAL - t) / 3);
+  }
+
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -171,13 +198,11 @@ function generateBGM(sr) {
         0.50 +
         0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
         0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
-
-      const globalFade = getGlobalFade(t, dur);
+      const globalFade = getGlobalFade(t);
       data[i] += lp * env * globalFade * volume * 15;
     }
   }
 
-  /** 海浪：用新的 globalFade，C 段真正降下来 */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -186,42 +211,20 @@ function generateBGM(sr) {
 
     let lpSurge = 0;
     let lpFall = 0;
-
-    let wave = {
-      active: false,
-      elapsed: 0,
-      duration: 0,
-      peak: 0,
-      riseRatio: 0,
-    };
+    let wave = { active: false, elapsed: 0, duration: 0, peak: 0, riseRatio: 0 };
     let nextIn = 1.5;
-
-    const sectionLen = dur / 4;
 
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-
-      // ===== 新的 globalFade，跟随大结构 =====
-      const globalFade = getGlobalFade(t, dur);
-
-      const sectionIndex = Math.min(3, Math.floor(t / sectionLen));
-      const sectionPos = (t % sectionLen) / sectionLen;
+      const globalFade = getGlobalFade(t);
 
       const innerWave1 = Math.sin(2 * Math.PI * t / 4.7);
       const innerWave2 = Math.sin(2 * Math.PI * t / 7.3 + 1.3);
       const innerWave3 = Math.sin(2 * Math.PI * t / 11.0 + 0.5);
-      const innerWave =
-        0.55 + 0.22 * innerWave1 + 0.15 * innerWave2 + 0.08 * innerWave3;
+      const innerWave = 0.55 + 0.22 * innerWave1 + 0.15 * innerWave2 + 0.08 * innerWave3;
 
-      // baseEnv 改成简化版：只做每段内部的轻微起伏
-      let baseEnv;
-      if (sectionIndex === 0) baseEnv = 0.60;
-      else if (sectionIndex === 1) baseEnv = 0.70;
-      else if (sectionIndex === 2) baseEnv = 0.55;
-      else baseEnv = 0.45;
-
-      const bigEnv = baseEnv * (0.55 + 0.55 * innerWave);
+      const bigEnv = 0.65 * (0.55 + 0.55 * innerWave);
 
       if (!wave.active) {
         nextIn -= 1 / sr;
@@ -240,8 +243,7 @@ function generateBGM(sr) {
         }
       }
 
-      let surgeAmp = 0;
-      let fallAmp = 0;
+      let surgeAmp = 0, fallAmp = 0;
       if (wave.active) {
         const p = wave.elapsed / wave.duration;
         if (p < wave.riseRatio) {
@@ -259,10 +261,7 @@ function generateBGM(sr) {
       lpSurge += 0.010 * (n1 - lpSurge);
       lpFall += 0.025 * (n2 - lpFall);
 
-      const surgeSample = lpSurge * surgeAmp * 8.0;
-      const fallSample = lpFall * fallAmp * 5.0;
-      const sample = surgeSample + fallSample;
-
+      const sample = lpSurge * surgeAmp * 8.0 + lpFall * fallAmp * 5.0;
       const activity = Math.max(surgeAmp, fallAmp);
       const env = bigEnv * (0.10 + activity * 0.9);
 
@@ -270,14 +269,17 @@ function generateBGM(sr) {
     }
   }
 
-  // ============ 旋律 ============
+  // ==================== 旋律和和弦 ====================
+
   const phrases = [
+    // A
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
       [6.5, 0.5, F.D4, false], [7, 1, F.E4, false],
       [8, 3, F.E4, true],
     ],
+    // B
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
@@ -286,6 +288,7 @@ function generateBGM(sr) {
       [8.5, 1, F.G4, false],
       [9.5, 2.5, F.E4, true],
     ],
+    // C
     [
       [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
       [4, 1, F.C5, false], [5, 1, F.B4, false],
@@ -293,6 +296,7 @@ function generateBGM(sr) {
       [8, 0.5, F.F4, false], [8.5, 0.5, F.G4, false], [9, 0.5, F.F4, false], [9.5, 0.5, F.E4, false],
       [10, 2, F.G4, false],
     ],
+    // D
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.E4, false], [5, 1, F.D4, false],
@@ -302,6 +306,13 @@ function generateBGM(sr) {
       [8.5, 2.5, F.C4, true],
     ],
   ];
+
+  // 长笛副旋律：主旋律的大三度上方（×1.26）
+  const flutePhrases = phrases.map(phrase =>
+    phrase.map(([beatPos, durBeats, freq, legato]) =>
+      [beatPos, durBeats, freq * 1.2599, legato]
+    )
+  );
 
   const phraseChords = [
     [
@@ -326,48 +337,161 @@ function generateBGM(sr) {
     ],
   ];
 
-  oceanWave(0, totalDuration, 0.20);
-  breeze(0, totalDuration, 0.30);
+  const boxPairs = [
+    [F.C6, F.E6, 0.020],
+    [F.B5, F.D6, 0.020],
+    [F.E6, F.G6, 0.010],
+    [F.C6, F.E6, 0.020],
+  ];
 
-  for (let p = 0; p < 4; p++) {
-    const phraseStart = p * 3 * barDuration;
-    const melody = phrases[p];
-    const chords = phraseChords[p];
+  // ==================== 背景：海浪 + 微风（整段）====================
+  oceanWave(0, TOTAL, 0.20);
+  breeze(0, TOTAL, 0.30);
 
+  // ==================== 段落渲染辅助 ====================
+
+  /** 渲染一句（钢琴 + 和弦 + 可选乐器） */
+  function renderPhrase(startTime, phraseIndex, config) {
+    const melody = phrases[phraseIndex];
+    const fluteMelody = flutePhrases[phraseIndex];
+    const chords = phraseChords[phraseIndex];
+
+    // 1. 钢琴主旋律
     for (const [startBeat, durBeats, freq, legato] of melody) {
-      piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
+      piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    for (let b = 0; b < 3; b++) {
-      const barStart = phraseStart + b * barDuration;
-      for (const note of chords[b].notes) {
-        stringEnsemble(barStart, note, barDuration * 0.95, 0.020);
+    // 2. 长笛副旋律
+    if (config.flute) {
+      for (const [startBeat, durBeats, freq] of fluteMelody) {
+        flute(startTime + startBeat * beat, freq, durBeats * beat * 0.95, config.fluteVolume || 0.12);
       }
     }
 
-    for (let b = 0; b < 3; b++) {
-      const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.48 : 0.78;
-      celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
+    // 3. 弦乐组
+    if (config.strings) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        for (const note of chords[b].notes) {
+          stringEnsemble(barStart, note, barDuration * 0.95, 0.020);
+        }
+      }
     }
 
-    for (let b = 0; b < 3; b++) {
-      const barStart = phraseStart + b * barDuration;
-      const c = chords[b];
-      harpHarmonic(barStart + 1.5 * beat, c.notes[0], 0.022);
-      harpHarmonic(barStart + 3.5 * beat, c.notes[2], 0.018);
+    // 4. 大提琴
+    if (config.cello) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        const vol = (b === 1) ? 0.48 : 0.78;
+        celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
+      }
     }
 
-    const boxPairs = [
-      [F.C6, F.E6, 0.020],
-      [F.B5, F.D6, 0.020],
-      [F.E6, F.G6, 0.010],
-      [F.C6, F.E6, 0.020],
-    ];
-    const [b1, b2, boxVol] = boxPairs[p];
-    musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
+    // 5. 竖琴
+    if (config.harp) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        const c = chords[b];
+        harpHarmonic(barStart + 1.5 * beat, c.notes[0], 0.022);
+        harpHarmonic(barStart + 3.5 * beat, c.notes[2], 0.018);
+      }
+    }
+
+    // 6. 八音盒（每句第 3 小节第 1 拍）
+    if (config.musicBox) {
+      const [b1, b2, boxVol] = boxPairs[phraseIndex];
+      musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
+    }
   }
 
+  // ==================== 第一遍（0 - 30s，轻）====================
+  // A、B：钢琴 + 八音盒
+  renderPhrase(FIRST_START + 0 * phraseDuration, 0, {
+    musicBox: true,
+  });
+  renderPhrase(FIRST_START + 1 * phraseDuration, 1, {
+    musicBox: true,
+  });
+  // C、D：加弦乐 + 大提琴
+  renderPhrase(FIRST_START + 2 * phraseDuration, 2, {
+    musicBox: true,
+    strings: true,
+    cello: true,
+  });
+  renderPhrase(FIRST_START + 3 * phraseDuration, 3, {
+    musicBox: true,
+    strings: true,
+    cello: true,
+  });
+
+  // ==================== 间奏（30 - 37.5s）====================
+  // 只用和弦 + 竖琴，不用钢琴主旋律
+  {
+    const startTime = INTERLUDE;
+    // 用 A 段的和弦作为间奏和声
+    const chords = phraseChords[0];
+    for (let b = 0; b < 3; b++) {
+      const barStart = startTime + b * barDuration;
+      const c = chords[b];
+      // 竖琴铺满
+      harpHarmonic(barStart, c.notes[0], 0.030);
+      harpHarmonic(barStart + 1 * beat, c.notes[1], 0.028);
+      harpHarmonic(barStart + 2 * beat, c.notes[2], 0.026);
+      harpHarmonic(barStart + 3 * beat, c.notes[3], 0.024);
+    }
+  }
+
+  // ==================== 第二遍（37.5 - 67.5s，满）====================
+  renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
+    flute: true, fluteVolume: 0.10,
+    musicBox: true,
+    strings: true,
+    cello: true,
+  });
+  renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
+    flute: true, fluteVolume: 0.10,
+    musicBox: true,
+    strings: true,
+    cello: true,
+  });
+  renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
+    flute: true, fluteVolume: 0.11,
+    musicBox: true,
+    strings: true,
+    cello: true,
+    harp: true,
+  });
+  renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
+    flute: true, fluteVolume: 0.10,
+    musicBox: true,
+    strings: true,
+    cello: true,
+    harp: true,
+  });
+
+  // ==================== 尾奏（67.5 - 75s）====================
+  // 钢琴 + 长笛，逐渐变淡（用音符本身表现）
+  {
+    const startTime = OUTRO_START;
+    // 用 D 段的和弦，钢琴弹慢速琶音
+    const chords = phraseChords[3];
+
+    // 钢琴：慢速 C 大调琶音
+    piano(startTime + 0 * beat, F.C4, 4 * beat, 0.26, false);
+    piano(startTime + 1 * beat, F.E4, 4 * beat, 0.24, false);
+    piano(startTime + 2 * beat, F.G4, 4 * beat, 0.22, false);
+    piano(startTime + 3 * beat, F.C5, 6 * beat, 0.20, false);
+    piano(startTime + 4 * beat, F.E4, 4 * beat, 0.18, false);
+    piano(startTime + 5 * beat, F.G4, 4 * beat, 0.16, false);
+    piano(startTime + 6 * beat, F.C5, 8 * beat, 0.14, 'veryLegato');
+
+    // 长笛：高八度呼应
+    flute(startTime + 2 * beat, F.C5 * 1.2599, 2 * beat, 0.08);
+    flute(startTime + 4 * beat, F.E5 * 1.2599, 2 * beat, 0.07);
+    flute(startTime + 6 * beat, F.G5 * 1.2599, 3 * beat, 0.06);
+  }
+
+  // ==================== 归一化 ====================
   let max = 0;
   for (let i = 0; i < data.length; i++) {
     const a = Math.abs(data[i]);
@@ -378,8 +502,9 @@ function generateBGM(sr) {
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
+  // 首尾淡入淡出（防止爆音）
   const fin = Math.floor(sr * 0.05);
-  const fout = Math.floor(sr * 0.2);
+  const fout = Math.floor(sr * 0.4);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
   for (let i = 0; i < fout; i++) data[data.length - 1 - i] *= i / fout;
 
