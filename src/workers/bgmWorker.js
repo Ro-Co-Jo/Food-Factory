@@ -1,8 +1,9 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v7：
-// - 八音盒主双音 0.015 → 0.020，C段单独降为 0.013
-// - 大提琴 0.24/0.14 → 0.35/0.20，每小节都发声，decay 延长
-// - 风声 1.3 → 2.8，alpha 0.005 → 0.008
+// 方案D改良版 v8：
+// - 风声 2.8 → 2.0
+// - 大提琴 0.35/0.20 → 0.45/0.26
+// - 八音盒 A/B/D 段 0.023，C 段 0.013
+// - 钢琴：attack 60ms，decay 2.5s，音符重叠 15%，降低切割感
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -30,26 +31,37 @@ function generateBGM(sr) {
 
   // ============ 音色 ============
 
+  /**
+   * 钢琴：主旋律
+   * 改良点：
+   * - attack 60ms（原来是 15ms，降低触键感）
+   * - decay 2.5s（原来是 1.8s，尾音更长）
+   * - 音符自动重叠 15%（原来是 1.0，现在是 1.15）
+   */
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
+    // 关键：音符实际发声时长 × 1.15，让相邻音符重叠
+    const overlap = 1.15;
+    const s1 = Math.floor((startT + dur * overlap) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    let at = 0.015, vf = 1.0;
-    if (legato === 'veryLegato') { at = 0.45; vf = 0.65; }
-    else if (legato === true) { at = 0.25; vf = 0.75; }
+    let at = 0.06, vf = 1.0;  // attack 从 15ms 提到 60ms
+    if (legato === 'veryLegato') { at = 0.5; vf = 0.65; }
+    else if (legato === true) { at = 0.3; vf = 0.75; }
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * at));
-      const d1 = Math.exp(-pos / (sr * 1.8));
-      const d2 = Math.exp(-pos / (sr * 0.8));
-      const d3 = Math.exp(-pos / (sr * 0.25));
+      // decay 从 1.8 延长到 2.5
+      const d1 = Math.exp(-pos / (sr * 2.5));
+      const d2 = Math.exp(-pos / (sr * 1.0));
+      const d3 = Math.exp(-pos / (sr * 0.3));
       const wave =
         d1 * Math.sin(2 * Math.PI * freq * t) +
         0.09 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
         0.02 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
-      const release = Math.min(1, (len - pos) / (sr * 0.3));
+      // release 从 300ms 延长到 500ms，让尾巴更自然
+      const release = Math.min(1, (len - pos) / (sr * 0.5));
       data[i] += wave * volume * vf * attack * release;
     }
   }
@@ -77,7 +89,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 大提琴：decay 延长到 3.2 秒，让尾音更长 */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -135,7 +146,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 晚风风声：音量 2.8，alpha 0.008 */
+  /** 晚风风声：音量 2.0，alpha 0.008 */
   function windNoise(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -215,8 +226,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 先铺风声（音量 2.8）============
-  windNoise(0, totalDuration, 2.8);
+  // ============ 先铺风声（音量 2.0）============
+  windNoise(0, totalDuration, 2.0);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
@@ -224,7 +235,7 @@ function generateBGM(sr) {
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    // 1. 主旋律：钢琴
+    // 1. 主旋律：钢琴（改良版）
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
@@ -237,10 +248,10 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴：每小节都发声（音量 0.35/0.20）
+    // 3. 大提琴（音量 0.45/0.26）
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
-      const vol = (b === 1) ? 0.20 : 0.35;
+      const vol = (b === 1) ? 0.26 : 0.45;
       celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
     }
 
@@ -252,12 +263,12 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒主双音：整体 0.020，C 段（E6+G6）单独降到 0.013
+    // 5. 八音盒：A/B/D 段 0.023，C 段 0.013
     const boxPairs = [
-      [F.C6, F.E6, 0.020],  // A：大三度
-      [F.B5, F.D6, 0.020],  // B：小三度
-      [F.E6, F.G6, 0.013],  // C：小三度（音高最高，单独降低）
-      [F.C6, F.E6, 0.020],  // D：大三度
+      [F.C6, F.E6, 0.023],  // A
+      [F.B5, F.D6, 0.023],  // B
+      [F.E6, F.G6, 0.013],  // C
+      [F.C6, F.E6, 0.023],  // D
     ];
     const [b1, b2, boxVol] = boxPairs[p];
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
