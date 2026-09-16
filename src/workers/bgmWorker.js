@@ -1,9 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v8：
-// - 风声 2.8 → 2.0
-// - 大提琴 0.35/0.20 → 0.45/0.26
-// - 八音盒 A/B/D 段 0.023，C 段 0.013
-// - 钢琴：attack 60ms，decay 2.5s，音符重叠 15%，降低切割感
+// 方案D改良版 v9：
+// - 风声 → 海浪声（4秒一个浪涌周期，渐强渐弱）
+// - 钢琴更柔和（attack 130ms，谐波减少，音量 0.26，重叠 1.2x）
+// - 八音盒 A/B/D 段 0.026，C 段 0.013
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -32,36 +31,33 @@ function generateBGM(sr) {
   // ============ 音色 ============
 
   /**
-   * 钢琴：主旋律
-   * 改良点：
-   * - attack 60ms（原来是 15ms，降低触键感）
-   * - decay 2.5s（原来是 1.8s，尾音更长）
-   * - 音符自动重叠 15%（原来是 1.0，现在是 1.15）
+   * 钢琴：主旋律（更柔和版）
+   * - attack 130ms（软触键）
+   * - 谐波减少（2次 0.09→0.05，3次 0.02→0.01）
+   * - decay 3.0s（尾音更长）
+   * - 音符重叠 1.2x
    */
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
-    // 关键：音符实际发声时长 × 1.15，让相邻音符重叠
-    const overlap = 1.15;
+    const overlap = 1.2;
     const s1 = Math.floor((startT + dur * overlap) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    let at = 0.06, vf = 1.0;  // attack 从 15ms 提到 60ms
-    if (legato === 'veryLegato') { at = 0.5; vf = 0.65; }
-    else if (legato === true) { at = 0.3; vf = 0.75; }
+    let at = 0.13, vf = 1.0;
+    if (legato === 'veryLegato') { at = 0.6; vf = 0.6; }
+    else if (legato === true) { at = 0.4; vf = 0.72; }
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * at));
-      // decay 从 1.8 延长到 2.5
-      const d1 = Math.exp(-pos / (sr * 2.5));
-      const d2 = Math.exp(-pos / (sr * 1.0));
-      const d3 = Math.exp(-pos / (sr * 0.3));
+      const d1 = Math.exp(-pos / (sr * 3.0));
+      const d2 = Math.exp(-pos / (sr * 1.2));
+      const d3 = Math.exp(-pos / (sr * 0.35));
       const wave =
         d1 * Math.sin(2 * Math.PI * freq * t) +
-        0.09 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.02 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
-      // release 从 300ms 延长到 500ms，让尾巴更自然
-      const release = Math.min(1, (len - pos) / (sr * 0.5));
+        0.05 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.01 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
+      const release = Math.min(1, (len - pos) / (sr * 0.55));
       data[i] += wave * volume * vf * attack * release;
     }
   }
@@ -146,27 +142,52 @@ function generateBGM(sr) {
     }
   }
 
-  /** 晚风风声：音量 2.0，alpha 0.008 */
-  function windNoise(startT, dur, volume) {
+  /**
+   * 海浪声：4 秒一个浪涌周期
+   * - 前 40% 渐强（涌上来）
+   * - 后 60% 渐弱（退下去）
+   * - 浪尖叠加高频泡沫感
+   * - 底噪 0.15，浪与浪之间不完全静音
+   */
+  function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    let lp = 0;
-    const alpha = 0.008;
+    let lpLow = 0;   // 低频：海浪主体
+    let lpHigh = 0;  // 稍高频：浪尖泡沫
+    const alphaLow = 0.008;
+    const alphaHigh = 0.05;
+    const wavePeriod = 4.0;  // 一个浪 4 秒
+
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const noise = Math.random() * 2 - 1;
-      lp += alpha * (noise - lp);
-      const env =
-        0.55 +
-        0.25 * Math.sin(2 * Math.PI * 0.07 * t) +
-        0.18 * Math.sin(2 * Math.PI * 0.13 * t + 1.3) +
-        0.10 * Math.sin(2 * Math.PI * 0.21 * t + 0.7);
+      lpLow += alphaLow * (noise - lpLow);
+      lpHigh += alphaHigh * (noise - lpHigh);
+
+      // 浪涌包络
+      const phase = (t / wavePeriod) % 1;
+      let surge;
+      if (phase < 0.4) {
+        // 渐强：从 0 涌到 1，用 1.5 次幂让"涌上来"更自然
+        surge = Math.pow(phase / 0.4, 1.5);
+      } else {
+        // 渐弱：从 1 退到 0，用 1.8 次幂让"退下去"更平滑
+        surge = Math.pow(1 - (phase - 0.4) / 0.6, 1.8);
+      }
+
+      // 基础底噪 0.15 + 浪涌 0.85
+      const env = 0.15 + 0.85 * surge;
+
+      // 浪尖时，高频成分比例增加（泡沫感）
+      const foamRatio = 0.25 + 0.35 * surge;
+      const wave = lpLow * (1 - foamRatio) + lpHigh * foamRatio;
+
       const fadeIn = Math.min(1, pos / (sr * 3.0));
       const fadeOut = Math.min(1, (len - pos) / (sr * 3.0));
-      data[i] += lp * env * fadeIn * fadeOut * volume;
+      data[i] += wave * env * fadeIn * fadeOut * volume;
     }
   }
 
@@ -226,8 +247,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 先铺风声（音量 2.0）============
-  windNoise(0, totalDuration, 2.0);
+  // ============ 铺海浪声（音量 2.0）============
+  oceanWave(0, totalDuration, 2.0);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
@@ -235,9 +256,9 @@ function generateBGM(sr) {
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    // 1. 主旋律：钢琴（改良版）
+    // 1. 主旋律：钢琴（更柔和，音量 0.26）
     for (const [startBeat, durBeats, freq, legato] of melody) {
-      piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
+      piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
     }
 
     // 2. 弦乐组
@@ -263,12 +284,12 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒：A/B/D 段 0.023，C 段 0.013
+    // 5. 八音盒：A/B/D 段 0.026，C 段 0.013
     const boxPairs = [
-      [F.C6, F.E6, 0.023],  // A
-      [F.B5, F.D6, 0.023],  // B
+      [F.C6, F.E6, 0.026],  // A
+      [F.B5, F.D6, 0.026],  // B
       [F.E6, F.G6, 0.013],  // C
-      [F.C6, F.E6, 0.023],  // D
+      [F.C6, F.E6, 0.026],  // D
     ];
     const [b1, b2, boxVol] = boxPairs[p];
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
