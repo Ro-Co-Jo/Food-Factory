@@ -1,8 +1,9 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v9：
-// - 风声 → 海浪声（4秒一个浪涌周期，渐强渐弱）
-// - 钢琴更柔和（attack 130ms，谐波减少，音量 0.26，重叠 1.2x）
-// - 八音盒 A/B/D 段 0.026，C 段 0.013
+// 方案D改良版 v10：
+// - 海浪声重新设计：中频水声 + 不规则起伏 + 大结构渐强
+// - 海浪音量 2.0 → 1.2
+// - 海浪大结构：A小引入 → B渐强 → C继续 → D峰值后回落
+// - 钢琴、大提琴、八音盒保持 v9 设定
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -30,13 +31,6 @@ function generateBGM(sr) {
 
   // ============ 音色 ============
 
-  /**
-   * 钢琴：主旋律（更柔和版）
-   * - attack 130ms（软触键）
-   * - 谐波减少（2次 0.09→0.05，3次 0.02→0.01）
-   * - decay 3.0s（尾音更长）
-   * - 音符重叠 1.2x
-   */
   function piano(startT, freq, dur, volume, legato) {
     const s0 = Math.floor(startT * sr);
     const overlap = 1.2;
@@ -143,51 +137,95 @@ function generateBGM(sr) {
   }
 
   /**
-   * 海浪声：4 秒一个浪涌周期
-   * - 前 40% 渐强（涌上来）
-   * - 后 60% 渐弱（退下去）
-   * - 浪尖叠加高频泡沫感
-   * - 底噪 0.15，浪与浪之间不完全静音
+   * 海浪声（重新设计）：
+   * - 音色：两级低通差分 → 中频水声，切掉过多低频（避免沙漠感）
+   * - 大结构包络：A小引入 → B渐强 → C继续 → D峰值后回落到A开头
+   * - 段内小浪：3 个不同频率正弦叠加，且每段频率不同 → 不规则起伏
    */
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
-    let lpLow = 0;   // 低频：海浪主体
-    let lpHigh = 0;  // 稍高频：浪尖泡沫
-    const alphaLow = 0.008;
-    const alphaHigh = 0.05;
-    const wavePeriod = 4.0;  // 一个浪 4 秒
+
+    // 三层滤波：低频（用于减法）、中频（主体）、高频（泡沫）
+    let lp1 = 0, lp2 = 0, lp3 = 0;
+    const a1 = 0.012;   // 低频
+    const a2 = 0.08;    // 中频
+    const a3 = 0.28;    // 高频泡沫
+
+    const sectionLen = dur / 4;  // 每段 7.5 秒
+    const songLen = dur;
 
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const noise = Math.random() * 2 - 1;
-      lpLow += alphaLow * (noise - lpLow);
-      lpHigh += alphaHigh * (noise - lpHigh);
 
-      // 浪涌包络
-      const phase = (t / wavePeriod) % 1;
-      let surge;
-      if (phase < 0.4) {
-        // 渐强：从 0 涌到 1，用 1.5 次幂让"涌上来"更自然
-        surge = Math.pow(phase / 0.4, 1.5);
+      lp1 += a1 * (noise - lp1);
+      lp2 += a2 * (noise - lp2);
+      lp3 += a3 * (noise - lp3);
+
+      // 中频水声主体：中频减去部分低频（去掉隆隆感）
+      const waterBody = lp2 - lp1 * 0.7;
+      // 高频泡沫：高频减去中频的差分
+      const foam = lp3 - lp2;
+
+      // ===== 大结构包络（30秒，跟随 A→B→C→D）=====
+      const sectionIndex = Math.floor(t / sectionLen);  // 0,1,2,3
+      const sectionPos = (t % sectionLen) / sectionLen;  // 0→1
+
+      let sectionEnv;
+      if (sectionIndex === 0) {
+        // A 段：0.30 → 0.45（小引入）
+        sectionEnv = 0.30 + 0.15 * sectionPos;
+      } else if (sectionIndex === 1) {
+        // B 段：0.45 → 0.65（渐强）
+        sectionEnv = 0.45 + 0.20 * sectionPos;
+      } else if (sectionIndex === 2) {
+        // C 段：0.65 → 0.85（继续强）
+        sectionEnv = 0.65 + 0.20 * sectionPos;
       } else {
-        // 渐弱：从 1 退到 0，用 1.8 次幂让"退下去"更平滑
-        surge = Math.pow(1 - (phase - 0.4) / 0.6, 1.8);
+        // D 段：0.85 → 1.0（前 60%）→ 回落到 0.30（后 40%）
+        if (sectionPos < 0.6) {
+          sectionEnv = 0.85 + 0.15 * (sectionPos / 0.6);
+        } else {
+          const p = (sectionPos - 0.6) / 0.4;
+          sectionEnv = 1.0 - 0.70 * p;  // 1.0 → 0.30
+        }
       }
 
-      // 基础底噪 0.15 + 浪涌 0.85
-      const env = 0.15 + 0.85 * surge;
+      // ===== 段内不规则小浪 =====
+      // 每段的浪频略有不同，让四段听起来不一样
+      const f1 = 0.15 + sectionIndex * 0.025;
+      const f2 = 0.23 + sectionIndex * 0.035;
+      const f3 = 0.37 + sectionIndex * 0.030;
+      const w1 = Math.sin(2 * Math.PI * f1 * t);
+      const w2 = Math.sin(2 * Math.PI * f2 * t + 1.2);
+      const w3 = Math.sin(2 * Math.PI * f3 * t + 2.7);
 
-      // 浪尖时，高频成分比例增加（泡沫感）
-      const foamRatio = 0.25 + 0.35 * surge;
-      const wave = lpLow * (1 - foamRatio) + lpHigh * foamRatio;
+      // 不规则混合（不完全平均，有主次）
+      let surgeRaw = 0.5 + 0.28 * w1 + 0.15 * w2 + 0.08 * w3;
+      surgeRaw = Math.max(0, Math.min(1, surgeRaw));
 
-      const fadeIn = Math.min(1, pos / (sr * 3.0));
-      const fadeOut = Math.min(1, (len - pos) / (sr * 3.0));
-      data[i] += wave * env * fadeIn * fadeOut * volume;
+      // 不对称整形：涌上来快，退下去慢
+      const surge = Math.pow(surgeRaw, 1.4);
+
+      // 小浪包络（0.35 底 + 0.65 浪涌）
+      const innerEnv = 0.35 + 0.65 * surge;
+
+      // 综合包络
+      const totalEnv = sectionEnv * innerEnv;
+
+      // 浪尖泡沫增加
+      const foamBoost = 1.0 + 0.7 * surge;
+      const wave = waterBody + foam * 0.4 * foamBoost;
+
+      // 首尾极短淡入淡出（仅 100ms，不影响循环）
+      const fadeIn = Math.min(1, pos / (sr * 0.1));
+      const fadeOut = Math.min(1, (len - pos) / (sr * 0.1));
+
+      data[i] += wave * totalEnv * fadeIn * fadeOut * volume;
     }
   }
 
@@ -247,8 +285,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ============ 铺海浪声（音量 2.0）============
-  oceanWave(0, totalDuration, 2.0);
+  // ============ 铺海浪声（音量 1.2）============
+  oceanWave(0, totalDuration, 1.2);
 
   // ============ 合成 ============
   for (let p = 0; p < 4; p++) {
@@ -256,7 +294,7 @@ function generateBGM(sr) {
     const melody = phrases[p];
     const chords = phraseChords[p];
 
-    // 1. 主旋律：钢琴（更柔和，音量 0.26）
+    // 1. 主旋律：钢琴
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(phraseStart + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
     }
@@ -269,7 +307,7 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 大提琴（音量 0.45/0.26）
+    // 3. 大提琴
     for (let b = 0; b < 3; b++) {
       const barStart = phraseStart + b * barDuration;
       const vol = (b === 1) ? 0.26 : 0.45;
@@ -284,12 +322,12 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 3.5 * beat, c.notes[2] * 2, 0.04);
     }
 
-    // 5. 八音盒：A/B/D 段 0.026，C 段 0.013
+    // 5. 八音盒：A/B/D 0.026，C 0.013
     const boxPairs = [
-      [F.C6, F.E6, 0.026],  // A
-      [F.B5, F.D6, 0.026],  // B
-      [F.E6, F.G6, 0.013],  // C
-      [F.C6, F.E6, 0.026],  // D
+      [F.C6, F.E6, 0.026],
+      [F.B5, F.D6, 0.026],
+      [F.E6, F.G6, 0.013],
+      [F.C6, F.E6, 0.026],
     ];
     const [b1, b2, boxVol] = boxPairs[p];
     musicBoxDuo(phraseStart + 2 * barDuration, b1, b2, boxVol);
