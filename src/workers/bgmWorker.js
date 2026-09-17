@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v44：删 harpGliss / markTree，farBell 降音量，修低频呜呜，尾奏延长到 128s
+// v45：删 flute，尾奏延长，最后和弦 32 拍，末尾加钢琴/竖琴单音，fout 3.5s
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -101,34 +101,7 @@ function generateBGM(sr) {
     }
   }
 
-  function flute(startT, freq, dur, volume) {
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    const len = s1 - s0;
-    if (len <= 0) return;
-    let breathLp = 0;
-    let lp = 0;
-    const lpAlpha = 0.35;
-    for (let i = s0; i < s1; i++) {
-      const t = (i - s0) / sr;
-      const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.008));
-      const release = Math.min(1, (len - pos) / (sr * 0.35));
-      const vibDelay = Math.min(1, Math.max(0, (t - 0.25) / 0.4));
-      const vibDepth = 0.0015 * vibDelay;
-      const vib = 1 + vibDepth * Math.sin(2 * Math.PI * 5.4 * t);
-      const wave =
-        Math.sin(2 * Math.PI * freq * vib * t) +
-        0.10 * Math.sin(2 * Math.PI * freq * 2 * vib * t) +
-        0.03 * Math.sin(2 * Math.PI * freq * 3 * t);
-      const noise = Math.random() * 2 - 1;
-      breathLp += 0.25 * (noise - breathLp);
-      const breathEnv = Math.exp(-pos / (sr * 0.04));
-      const breath = breathLp * breathEnv * 0.06;
-      lp += lpAlpha * (wave - lp);
-      data[i] += (lp + breath) * volume * attack * release;
-    }
-  }
+  // flute 函数保留但不再调用
 
   function guitarFingerpick(startTime, notes, volume) {
     const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
@@ -175,7 +148,6 @@ function generateBGM(sr) {
     }
   }
 
-  // 单 detune，去掉慢拍频
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
@@ -188,9 +160,7 @@ function generateBGM(sr) {
       const attack = Math.min(1, pos / (sr * 0.6));
       const release = Math.min(1, (len - pos) / (sr * 1.0));
       const env = attack * release;
-      let wave = 0;
-      wave += Math.sin(2 * Math.PI * freq * t);
-      wave += 0.06 * Math.sin(2 * Math.PI * freq * 2 * t);
+      const wave = Math.sin(2 * Math.PI * freq * t);
       data[i] += wave * volume * env * 0.5;
     }
   }
@@ -216,11 +186,9 @@ function generateBGM(sr) {
     }
   }
 
-  // 只留两把，detune ±0.02%
   function celloSection(startT, freq, dur, volume) {
     const extendedDur = dur * 1.5;
-    cello(startT, freq, extendedDur, volume * 0.50, 1.0000);
-    cello(startT, freq, extendedDur, volume * 0.35, 1.0002);
+    cello(startT, freq, extendedDur, volume * 0.7, 1.0000);
   }
 
   function pizzBass(startT, freq, volume) {
@@ -360,29 +328,6 @@ function generateBGM(sr) {
     }
   }
 
-  // vocalPad 函数保留但不再调用
-  function vocalPad(startT, freq, dur, volume) {
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    const len = s1 - s0;
-    if (len <= 0) return;
-    const formants = [1, 2, 3, 4];
-    const gains = [1, 0.35, 0.18, 0.08];
-    for (let i = s0; i < s1; i++) {
-      const t = (i - s0) / sr;
-      const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.8));
-      const release = Math.min(1, (len - pos) / (sr * 1.5));
-      const breathe = 1 + 0.0008 * Math.sin(2 * Math.PI * 0.7 * t);
-      let wave = 0;
-      for (let k = 0; k < formants.length; k++) {
-        const phase = k * 0.7;
-        wave += gains[k] * Math.sin(2 * Math.PI * freq * formants[k] * breathe * t + phase);
-      }
-      data[i] += wave * volume * attack * release * 0.4;
-    }
-  }
-
   function farBell(startT, freq, volume) {
     const dur = 6.0;
     const s0 = Math.floor(startT * sr);
@@ -411,8 +356,9 @@ function generateBGM(sr) {
     else if (t < 52) return 0.21 + ((t - 42) / 10) * 0.07;
     else if (t < 82) return 0.28 + ((t - 52) / 30) * 0.07;
     else if (t < 102) return 0.35 + ((t - 82) / 20) * 0.02;
-    else if (t < 118) return 0.37 - ((t - 102) / 16) * 0.10;
-    else return Math.max(0, 0.27 * (TOTAL - t) / 10);
+    else if (t < 118) return 0.37 - ((t - 102) / 16) * 0.08;
+    else if (t < 126) return 0.29 - ((t - 118) / 8) * 0.22;
+    else return Math.max(0, 0.07 * (TOTAL - t) / 2);
   }
 
   function breeze(startT, dur, volume) {
@@ -674,15 +620,7 @@ function generateBGM(sr) {
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
     }
 
-    if (config.flute) {
-      const v = config.fluteVolume || 0.07;
-      flute(startTime + 0 * barDuration, chords[0].root * 2, barDuration * 0.9, v);
-      flute(startTime + 1 * barDuration, chords[1].root * 2, barDuration * 0.9, v * 0.9);
-      flute(startTime + 0 * barDuration, chords[0].root, barDuration * 0.9, v * 0.6);
-      flute(startTime + 1 * barDuration, chords[1].root, barDuration * 0.9, v * 0.55);
-    }
-
-    // vocalPad 不再调用
+    // flute 不再调用
 
     if (config.shaker) {
       for (let b = 0; b < 3; b++) {
@@ -736,7 +674,6 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 2 * beat, c.notes[2], 0.026);
       harpHarmonic(barStart + 3 * beat, c.notes[3], 0.024);
     }
-    // 删掉 harpGliss 和 markTree
     piano(INTERLUDE + 3 * barDuration + 2 * beat, F.C5, 1 * beat, 0.20, false);
     piano(INTERLUDE + 3 * barDuration + 3 * beat, F.G4, 1 * beat, 0.19, false);
     piano(INTERLUDE + 3 * barDuration + 4 * beat, F.E4, 1 * beat, 0.18, false);
@@ -747,7 +684,6 @@ function generateBGM(sr) {
   }
 
   // ==================== A2（52 - 82s）====================
-  // 删掉 harpGliss 和 markTree
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
@@ -769,7 +705,6 @@ function generateBGM(sr) {
     guitarStrum: true, strumVolume: 0.11,
     musicBox: true, strings: true, cello: true, harp: true,
     pizz: true, pizzVolume: 0.13,
-    flute: true, fluteVolume: 0.06,
     pianoEcho: true,
     shaker: true,
   });
@@ -778,13 +713,11 @@ function generateBGM(sr) {
     guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true, harp: true,
     pizz: true, pizzVolume: 0.12,
-    flute: true, fluteVolume: 0.06,
     pianoEcho: true,
     shaker: true,
   });
 
   // ==================== B（82 - 102s）====================
-  // 删掉 harpGliss 和 markTree
   renderPhrase(B_START + 0 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
@@ -809,22 +742,22 @@ function generateBGM(sr) {
   {
     const startTime = OUTRO_START;
 
-    // Outro 删掉 farBell
-
     piano(startTime + 0 * beat, F.C5, 1.2 * beat, 0.26, false);
     piano(startTime + 1 * beat, F.G4, 1.2 * beat, 0.25, false);
     piano(startTime + 2 * beat, F.E4, 1.2 * beat, 0.24, false);
     piano(startTime + 3 * beat, F.G4, 1.2 * beat, 0.23, false);
     piano(startTime + 4 * beat, F.E4, 1.2 * beat, 0.22, false);
     piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
-    piano(startTime + 6 * beat, F.C4, 24 * beat, 0.20, 'veryLegato');
+    // 最后和弦从 24 拍延到 32 拍，到 122.75s
+    piano(startTime + 6 * beat, F.C4, 32 * beat, 0.20, 'veryLegato');
 
     guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.10);
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.09);
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
 
-    // 最后一滴水
-    piano(startTime + 18 * beat, F.C6, 4 * beat, 0.08, 'veryLegato');
+    // 最后一滴水：C6 钢琴 + G5 竖琴泛音，在 122s 和 123.5s
+    piano(startTime + 20 * beat, F.C6, 6 * beat, 0.07, 'veryLegato');
+    harpHarmonic(startTime + 22 * beat, F.G5, 0.018);
 
     glockenspiel(startTime + 0.7, F.C6, 0.014);
     glockenspiel(startTime + 1.5, F.G5, 0.013);
@@ -849,7 +782,7 @@ function generateBGM(sr) {
   }
 
   const fin = Math.floor(sr * 0.05);
-  const fout = Math.floor(sr * 2.5);
+  const fout = Math.floor(sr * 3.5);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
   for (let i = 0; i < fout; i++) data[data.length - 1 - i] *= i / fout;
 
