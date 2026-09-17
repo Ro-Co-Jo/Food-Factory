@@ -1,8 +1,7 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v34：
-// - 大提琴改为真正的弦乐音色（延长 attack + 颤音 + 弓毛噪声 + 丰富谐波）
-// - 吉他音量提升到 0.13
-// - 前 5 秒新增星空点缀
+// 方案D改良版 v35：
+// - 大提琴去掉颤音/噪声/4次谐波，回到绵长恒久的稳定音色
+// - 星光改为"一闪即逝"（0.4秒急速衰减）
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -119,12 +118,11 @@ function generateBGM(sr) {
   }
 
   /**
-   * 大提琴：真正的弦乐音色
-   * - attack 0.55s（弓弦柔和起音）
-   * - 缓慢衰减到 0.75，然后保持
-   * - 4.5Hz 微弱颤音
-   * - 丰富谐波：1 + 2(0.20) + 3(0.08) + 4(0.03)
-   * - 极轻弓毛噪声
+   * 大提琴：绵长恒久，无颤音无噪声
+   * - attack 0.35s 柔和起音
+   * - 全程稳定保持（85% 满音量，最后 15% 释放）
+   * - 谐波：1 + 2(0.18) + 3(0.05)
+   * - 无颤音、无弓毛噪声
    */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
@@ -134,35 +132,23 @@ function generateBGM(sr) {
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      // 弓弦起音：0.55s
-      const attack = Math.min(1, pos / (sr * 0.55));
-      // 缓慢衰减到 0.75，保持连续感
-      const sustainCurve = 0.75 + 0.25 * Math.exp(-pos / (sr * 5));
+      const attack = Math.min(1, pos / (sr * 0.35));
+      const sustain = pos < len * 0.85 ? 1 : (len - pos) / (len * 0.15);
       const release = Math.min(1, (len - pos) / (sr * 0.8));
-      const env = attack * sustainCurve * release;
-
-      // 4.5Hz 微弱颤音（弓弦自然波动）
-      const vib = 1 + 0.004 * Math.sin(2 * Math.PI * 4.5 * t);
-      const f = freq * detune * vib;
-
+      const env = attack * sustain * release;
+      const f = freq * detune;
       const wave =
         Math.sin(2 * Math.PI * f * t) +
-        0.20 * Math.sin(2 * Math.PI * f * 2 * t) +
-        0.08 * Math.sin(2 * Math.PI * f * 3 * t) +
-        0.03 * Math.sin(2 * Math.PI * f * 4 * t);
-
-      // 极轻弓毛摩擦噪声
-      const bowNoise = (Math.random() * 2 - 1) * 0.006;
-
-      data[i] += (wave + bowNoise) * volume * env;
+        0.18 * Math.sin(2 * Math.PI * f * 2 * t) +
+        0.05 * Math.sin(2 * Math.PI * f * 3 * t);
+      data[i] += wave * volume * env;
     }
   }
 
-  /** 3 把大提琴（音量系数整体降低避免"炸"） */
   function celloSection(startT, freq, dur, volume) {
-    cello(startT, freq, dur, volume * 0.35, 1.0000);
-    cello(startT, freq, dur, volume * 0.28, 1.0015);
-    cello(startT, freq, dur, volume * 0.28, 0.9985);
+    cello(startT, freq, dur, volume * 0.40, 1.0000);
+    cello(startT, freq, dur, volume * 0.30, 1.0015);
+    cello(startT, freq, dur, volume * 0.30, 0.9985);
   }
 
   function harpHarmonic(startT, freq, volume) {
@@ -199,25 +185,24 @@ function generateBGM(sr) {
   }
 
   /**
-   * 星空点缀：高音短促闪烁，像夜晚的星星
-   * - attack 10ms
-   * - decay 0.6s（短促）
-   * - 高频 C6~G6
+   * 星光：一闪即逝，像被风吹了一下
+   * - attack 5ms
+   * - decay 0.12s（极快）
+   * - 总时长 0.5s
    */
   function starTwinkle(startT, freq, volume) {
-    const dur = 2.0;
+    const dur = 0.5;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.01));
-      const decay = Math.exp(-pos / (sr * 0.6));
+      const attack = Math.min(1, pos / (sr * 0.005));
+      const decay = Math.exp(-pos / (sr * 0.12));
       const wave =
         Math.sin(2 * Math.PI * freq * t) +
-        0.20 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.08 * Math.sin(2 * Math.PI * freq * 3 * t) +
-        0.03 * Math.sin(2 * Math.PI * freq * 4 * t);
+        0.15 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.05 * Math.sin(2 * Math.PI * freq * 3 * t);
       data[i] += wave * volume * attack * decay;
     }
   }
@@ -388,13 +373,13 @@ function generateBGM(sr) {
   oceanWave(0, TOTAL, 0.20);
   breeze(0, TOTAL, 0.30);
 
-  // ==================== 前 5 秒星空点缀 ====================
-  starTwinkle(0.6, F.C6, 0.014);
-  starTwinkle(1.4, F.G5, 0.012);
-  starTwinkle(2.3, F.E6, 0.013);
-  starTwinkle(3.1, F.C6, 0.011);
-  starTwinkle(3.9, F.B5, 0.012);
-  starTwinkle(4.6, F.G6, 0.010);
+  // ==================== 前 5 秒星空点缀（一闪即逝）====================
+  starTwinkle(0.6, F.C6, 0.016);
+  starTwinkle(1.4, F.G5, 0.014);
+  starTwinkle(2.3, F.E6, 0.015);
+  starTwinkle(3.1, F.C6, 0.013);
+  starTwinkle(3.9, F.B5, 0.014);
+  starTwinkle(4.6, F.G6, 0.012);
 
   function renderPhrase(startTime, phraseIndex, config) {
     const melody = phrases[phraseIndex];
@@ -498,7 +483,6 @@ function generateBGM(sr) {
     piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
     piano(startTime + 6 * beat, F.C4, 8 * beat, 0.20, 'veryLegato');
 
-    // 吉他：跟着下行做泛音点缀
     guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.10);
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.09);
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
