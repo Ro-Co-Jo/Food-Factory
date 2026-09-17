@@ -1,7 +1,7 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v32：
-// - 吉他改为分解和弦（8 分音符，和弦内音）
-// - 尾奏琶音保持 C5→C3 下行
+// 方案D改良版 v33：
+// - 吉他分解和弦
+// - 尾奏琶音：C5 → G4 → E4 → G4 → E4 → G3 → C4
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -61,7 +61,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 指弹吉他：泛音自然不刺耳 */
   function guitar(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -88,10 +87,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 吉他分解和弦：每小节 8 个八分音符，走和弦内音 */
   function guitarArpeggio(startTime, notes, volume) {
-    // notes = [根音, 三音, 五音, 高八度根音]
-    // 弹奏顺序：根-三-五-高-五-三-根-三
     const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
     for (let i = 0; i < 8; i++) {
       const t = startTime + i * 0.5 * beat;
@@ -282,14 +278,12 @@ function generateBGM(sr) {
   // ==================== 旋律和和弦 ====================
 
   const phrases = [
-    // A
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
       [6.5, 0.5, F.D4, false], [7, 1, F.E4, false],
       [8, 3, F.E4, true],
     ],
-    // B
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.A4, false], [5, 1, F.G4, false],
@@ -298,7 +292,6 @@ function generateBGM(sr) {
       [8.5, 1, F.G4, false],
       [9.5, 2.5, F.E4, true],
     ],
-    // C
     [
       [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
       [4, 1, F.C5, false], [5, 1, F.B4, false],
@@ -306,7 +299,6 @@ function generateBGM(sr) {
       [8, 0.5, F.F4, false], [8.5, 0.5, F.G4, false], [9, 0.5, F.F4, false], [9.5, 0.5, F.E4, false],
       [10, 2, F.G4, false],
     ],
-    // D
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
       [4, 1, F.E4, false], [5, 1, F.D4, false],
@@ -317,7 +309,6 @@ function generateBGM(sr) {
     ],
   ];
 
-  // 和弦定义（每个小节一个和弦）
   const phraseChords = [
     [
       { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
@@ -355,12 +346,10 @@ function generateBGM(sr) {
     const melody = phrases[phraseIndex];
     const chords = phraseChords[phraseIndex];
 
-    // 1. 钢琴主旋律
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 吉他分解和弦（每小节 8 个八分音符）
     if (config.guitar) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -368,7 +357,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 弦乐组
     if (config.strings) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -378,7 +366,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 4. 大提琴
     if (config.cello) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -387,7 +374,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 5. 竖琴
     if (config.harp) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -397,7 +383,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 6. 八音盒
     if (config.musicBox) {
       const [b1, b2, boxVol] = boxPairs[phraseIndex];
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
@@ -448,8 +433,6 @@ function generateBGM(sr) {
 
   // ==================== 尾奏（67.5 - 75s）====================
   {
-    // ==================== 尾奏（67.5 - 75s）====================
-  {
     const startTime = OUTRO_START;
 
     // 下行琶音：C5 → G4 → E4 → G4 → E4 → G3 → C4
@@ -461,11 +444,6 @@ function generateBGM(sr) {
     piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
     piano(startTime + 6 * beat, F.C4, 8 * beat, 0.20, 'veryLegato');
 
-    // 吉他：下行时在上方点缀
-    guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.08);
-    guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.07);
-    guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.06);
-  }
     // 吉他：跟着下行做泛音点缀
     guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.08);
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.07);
