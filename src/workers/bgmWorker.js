@@ -1,7 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v35：
-// - 大提琴去掉颤音/噪声/4次谐波，回到绵长恒久的稳定音色
-// - 星光改为"一闪即逝"（0.4秒急速衰减）
+// 方案D改良版 v36：
+// - 星光加"风吹晃荡"效果（频率微颤 + 尾音延长）
+// - 大提琴 release 0.8s → 1.6s（尾音更长）
+// - 第二遍吉他音量 +0.03
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -118,11 +119,7 @@ function generateBGM(sr) {
   }
 
   /**
-   * 大提琴：绵长恒久，无颤音无噪声
-   * - attack 0.35s 柔和起音
-   * - 全程稳定保持（85% 满音量，最后 15% 释放）
-   * - 谐波：1 + 2(0.18) + 3(0.05)
-   * - 无颤音、无弓毛噪声
+   * 大提琴：绵长恒久，尾音延长到 1.6s
    */
   function cello(startT, freq, dur, volume, detune = 1.0) {
     const s0 = Math.floor(startT * sr);
@@ -134,7 +131,8 @@ function generateBGM(sr) {
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.35));
       const sustain = pos < len * 0.85 ? 1 : (len - pos) / (len * 0.15);
-      const release = Math.min(1, (len - pos) / (sr * 0.8));
+      // release 从 0.8s 延长到 1.6s
+      const release = Math.min(1, (len - pos) / (sr * 1.6));
       const env = attack * sustain * release;
       const f = freq * detune;
       const wave =
@@ -185,24 +183,31 @@ function generateBGM(sr) {
   }
 
   /**
-   * 星光：一闪即逝，像被风吹了一下
-   * - attack 5ms
-   * - decay 0.12s（极快）
-   * - 总时长 0.5s
+   * 星光：一闪即逝 + 被风吹的晃荡感
+   * - attack 5ms（快速击出）
+   * - decay 0.5s（一闪）
+   * - 但频率有 6Hz 的微颤，模拟"被风吹后晃动"
+   * - 尾音延伸到 1.5s，慢慢消失
    */
   function starTwinkle(startT, freq, volume) {
-    const dur = 0.5;
+    const dur = 1.5;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
       const attack = Math.min(1, pos / (sr * 0.005));
-      const decay = Math.exp(-pos / (sr * 0.12));
+      // 双层衰减：前段快（一闪），后段慢（余音晃荡）
+      const decayFast = Math.exp(-pos / (sr * 0.25));
+      const decaySlow = Math.exp(-pos / (sr * 0.9));
+      const decay = 0.7 * decayFast + 0.3 * decaySlow;
+      // 6Hz 微颤，模拟被风吹的晃荡
+      const vib = 1 + 0.008 * Math.sin(2 * Math.PI * 6 * t);
+      const f = freq * vib;
       const wave =
-        Math.sin(2 * Math.PI * freq * t) +
-        0.15 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.05 * Math.sin(2 * Math.PI * freq * 3 * t);
+        Math.sin(2 * Math.PI * f * t) +
+        0.15 * Math.sin(2 * Math.PI * f * 2 * t) +
+        0.05 * Math.sin(2 * Math.PI * f * 3 * t);
       data[i] += wave * volume * attack * decay;
     }
   }
@@ -373,7 +378,7 @@ function generateBGM(sr) {
   oceanWave(0, TOTAL, 0.20);
   breeze(0, TOTAL, 0.30);
 
-  // ==================== 前 5 秒星空点缀（一闪即逝）====================
+  // ==================== 前 5 秒星空点缀（一闪即逝+风吹晃荡）====================
   starTwinkle(0.6, F.C6, 0.016);
   starTwinkle(1.4, F.G5, 0.014);
   starTwinkle(2.3, F.E6, 0.015);
@@ -392,7 +397,7 @@ function generateBGM(sr) {
     if (config.guitar) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
-        guitarArpeggio(barStart, chords[b].notes, config.guitarVolume || 0.13);
+        guitarArpeggio(barStart, chords[b].notes, config.guitarVolume || 0.16);
       }
     }
 
@@ -454,19 +459,19 @@ function generateBGM(sr) {
 
   // ==================== 第二遍（37.5 - 67.5s）====================
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
-    guitar: true, guitarVolume: 0.13,
+    guitar: true, guitarVolume: 0.16,
     musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
-    guitar: true, guitarVolume: 0.13,
+    guitar: true, guitarVolume: 0.16,
     musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
-    guitar: true, guitarVolume: 0.14,
+    guitar: true, guitarVolume: 0.17,
     musicBox: true, strings: true, cello: true, harp: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
-    guitar: true, guitarVolume: 0.13,
+    guitar: true, guitarVolume: 0.16,
     musicBox: true, strings: true, cello: true, harp: true,
   });
 
