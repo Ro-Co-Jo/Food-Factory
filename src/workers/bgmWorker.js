@@ -1,8 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v38：
-// - 第二把吉他改为下三度 + 延迟 30ms + 独立音色
-// - 星光换成钟琴（单音，无颤音无拍频）
-// - 第二段新增沙锤
+// 方案D改良版 v39：
+// - 第一把吉他：指弹分解
+// - 第二把吉他：扫弦（根音 + 扫弦，经典流行 pattern）
+// - 沙锤音量提升到 0.11/0.06
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -62,7 +62,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 第一把吉他（主）：指弹音色 */
+  /** 吉他单音（指弹/扫弦共用） */
   function guitar(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -90,49 +90,61 @@ function generateBGM(sr) {
   }
 
   /**
-   * 第二把吉他（和声）：音色比第一把更干净，起音稍慢，
-   * 放在第一把的三度/六度位置。
+   * 第一把吉他：指弹分解和弦
+   * pattern: 根-三-五-高-五-三-根-三
    */
-  function guitarHarmony(startT, freq, dur, volume) {
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    const len = s1 - s0;
-    if (len <= 0) return;
-    for (let i = s0; i < s1; i++) {
-      const t = (i - s0) / sr;
-      const pos = i - s0;
-      // 起音稍慢（25ms），与第一把区分
-      const attack = Math.min(1, pos / (sr * 0.025));
-      const decay = Math.exp(-pos / (sr * 1.6));
-      const release = Math.min(1, (len - pos) / (sr * 0.5));
-      const env = attack * decay * release;
-
-      // 更干净：少一点谐波，去掉琴箱共鸣
-      const wave =
-        Math.sin(2 * Math.PI * freq * t) +
-        0.05 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.015 * Math.sin(2 * Math.PI * freq * 3 * t);
-
-      data[i] += wave * volume * env;
+  function guitarFingerpick(startTime, notes, volume) {
+    const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
+    for (let i = 0; i < 8; i++) {
+      const t = startTime + i * 0.5 * beat;
+      guitar(t, notes[pattern[i]], 0.5 * beat * 0.98, volume);
     }
   }
 
   /**
-   * 双吉他分解和弦：
-   * - 第一把：和弦内音（主）
-   * - 第二把：第一把每个音的下三度（即六度和声）+ 延迟 30ms
+   * 第二把吉他：扫弦（根音 + 扫弦，经典流行 pattern）
+   * 
+   * 节奏 pattern（每小节 4 拍）：
+   *   拍 0：根音 + 下扫（强）
+   *   拍 1：根音 + 下扫
+   *   拍 1.5：上扫（轻）
+   *   拍 2.5：上扫（轻）
+   *   拍 3：根音 + 下扫
+   *   拍 3.5：上扫（轻）
+   * 
+   * 扫弦的实现：和弦内音依次错开 12ms 触发，模拟"扫"的效果
    */
-  function guitarArpeggio(startTime, notes, volume) {
-    const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
-    // 下三度 = ×0.8409（六度和声的转位）
-    const harmonizedNotes = notes.map(n => n * 0.8409);
-    for (let i = 0; i < 8; i++) {
-      const t = startTime + i * 0.5 * beat;
-      const idx = pattern[i];
-      // 第一把吉他（主）
-      guitar(t, notes[idx], 0.5 * beat * 0.98, volume);
-      // 第二把吉他（和声，延迟 30ms，音量稍低）
-      guitarHarmony(t + 0.03, harmonizedNotes[idx], 0.5 * beat * 0.98, volume * 0.6);
+  function guitarStrum(startTime, notes, volume) {
+    const strumPattern = [
+      { t: 0,   dir: 'down', vol: 1.00, root: true  },
+      { t: 1,   dir: 'down', vol: 0.85, root: true  },
+      { t: 1.5, dir: 'up',   vol: 0.55, root: false },
+      { t: 2.5, dir: 'up',   vol: 0.55, root: false },
+      { t: 3,   dir: 'down', vol: 0.85, root: true  },
+      { t: 3.5, dir: 'up',   vol: 0.55, root: false },
+    ];
+
+    for (const step of strumPattern) {
+      const startBeat = startTime + step.t * beat;
+      const strumVol = volume * step.vol;
+
+      // 先弹根音（低音弦单响，作为引导）
+      if (step.root) {
+        guitar(startBeat, notes[0], 0.5 * beat * 0.98, strumVol * 1.1);
+      }
+
+      // 然后扫弦（错开 12ms 依次触发）
+      if (step.dir === 'down') {
+        for (let i = 0; i < notes.length; i++) {
+          const t = startBeat + 0.01 + i * 0.012;
+          guitar(t, notes[i], 0.5 * beat * 0.98, strumVol);
+        }
+      } else {
+        for (let i = notes.length - 1; i >= 0; i--) {
+          const t = startBeat + (notes.length - 1 - i) * 0.012;
+          guitar(t, notes[i], 0.5 * beat * 0.98, strumVol * 0.8);
+        }
+      }
     }
   }
 
@@ -219,12 +231,7 @@ function generateBGM(sr) {
     }
   }
 
-  /**
-   * 钟琴：单音（无颤音、无拍频）
-   * - attack 3ms
-   * - decay 0.85s
-   * - 谐波：1 + 4次(0.12) + 9.2次(0.04)
-   */
+  /** 钟琴：单音，无颤音无拍频 */
   function glockenspiel(startT, freq, volume) {
     const dur = 1.8;
     const s0 = Math.floor(startT * sr);
@@ -243,9 +250,7 @@ function generateBGM(sr) {
     }
   }
 
-  /**
-   * 沙锤：短促的白噪声 + 高通，模拟沙沙声
-   */
+  /** 沙锤：短促的白噪声 + 高通 */
   function shaker(startT, volume) {
     const dur = 0.1;
     const s0 = Math.floor(startT * sr);
@@ -428,7 +433,7 @@ function generateBGM(sr) {
   oceanWave(0, TOTAL, 0.20);
   breeze(0, TOTAL, 0.30);
 
-  // ==================== 前 5 秒钟琴（单音点缀）====================
+  // ==================== 前 5 秒钟琴 ====================
   glockenspiel(0.6, F.C6, 0.018);
   glockenspiel(1.4, F.G5, 0.016);
   glockenspiel(2.3, F.E6, 0.017);
@@ -444,10 +449,19 @@ function generateBGM(sr) {
       piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    if (config.guitar) {
+    // 第一把吉他：指弹
+    if (config.guitarFinger) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
-        guitarArpeggio(barStart, chords[b].notes, config.guitarVolume || 0.19);
+        guitarFingerpick(barStart, chords[b].notes, config.guitarVolume || 0.13);
+      }
+    }
+
+    // 第二把吉他：扫弦
+    if (config.guitarStrum) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        guitarStrum(barStart, chords[b].notes, config.strumVolume || 0.10);
       }
     }
 
@@ -482,13 +496,13 @@ function generateBGM(sr) {
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
     }
 
-    // 沙锤：每小节八分音符，强弱交替
+    // 沙锤：每小节八分音符，强弱交替（音量大幅提升）
     if (config.shaker) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
         for (let i = 0; i < 8; i++) {
           const t = barStart + i * 0.5 * beat;
-          const vol = (i % 2 === 0) ? 0.032 : 0.020;
+          const vol = (i % 2 === 0) ? 0.11 : 0.06;
           shaker(t, vol);
         }
       }
@@ -521,22 +535,26 @@ function generateBGM(sr) {
 
   // ==================== 第二遍（37.5 - 67.5s）====================
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
-    guitar: true, guitarVolume: 0.19,
+    guitarFinger: true, guitarVolume: 0.13,
+    guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true,
     shaker: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
-    guitar: true, guitarVolume: 0.19,
+    guitarFinger: true, guitarVolume: 0.13,
+    guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true,
     shaker: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
-    guitar: true, guitarVolume: 0.20,
+    guitarFinger: true, guitarVolume: 0.14,
+    guitarStrum: true, strumVolume: 0.11,
     musicBox: true, strings: true, cello: true, harp: true,
     shaker: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
-    guitar: true, guitarVolume: 0.19,
+    guitarFinger: true, guitarVolume: 0.13,
+    guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true, harp: true,
     shaker: true,
   });
@@ -558,7 +576,7 @@ function generateBGM(sr) {
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
   }
 
-  // ==================== 尾部钟琴（呼应开头）====================
+  // ==================== 尾部钟琴 ====================
   glockenspiel(68.2, F.C6, 0.014);
   glockenspiel(69.0, F.G5, 0.013);
   glockenspiel(69.8, F.E6, 0.012);
