@@ -1,6 +1,5 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v29：马林巴副旋律改为纯五度（1.4983）
-// 解决 v28 的调外音和失真颤音
+// 方案D改良版 v30：马林巴换尼龙弦吉他，音色沉而稳
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -59,8 +58,14 @@ function generateBGM(sr) {
     }
   }
 
-  /** 马林巴：温暖木质，敲击式起音 */
-  function marimba(startT, freq, dur, volume) {
+  /**
+   * 尼龙弦吉他：沉而稳，不剔透
+   * - 谐波：1次 + 2次(0.12) + 3次(0.04) + 5次(0.015)，无 4/10 次
+   * - attack 6ms 柔和拨弦
+   * - decay 2.0s 长尾音
+   * - 加一点低八度共鸣（琴箱）
+   */
+  function guitar(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
@@ -68,15 +73,24 @@ function generateBGM(sr) {
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.003));
-      const decay = Math.exp(-pos / (sr * 0.9));
-      const release = Math.min(1, (len - pos) / (sr * 0.4));
+      // 柔和拨弦：6ms
+      const attack = Math.min(1, pos / (sr * 0.006));
+      // 长尾音：2.0s
+      const decay = Math.exp(-pos / (sr * 2.0));
+      const release = Math.min(1, (len - pos) / (sr * 0.5));
       const env = attack * decay * release;
+
+      // 尼龙弦主体：低次谐波为主，温暖
       const wave =
         Math.sin(2 * Math.PI * freq * t) +
-        0.25 * Math.sin(2 * Math.PI * freq * 4 * t) +
-        0.06 * Math.sin(2 * Math.PI * freq * 10 * t);
-      data[i] += wave * volume * env;
+        0.12 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.04 * Math.sin(2 * Math.PI * freq * 3 * t) +
+        0.015 * Math.sin(2 * Math.PI * freq * 5 * t);
+
+      // 琴箱共鸣：低八度极轻垫底
+      const body = 0.05 * Math.sin(2 * Math.PI * freq * 0.5 * t);
+
+      data[i] += (wave + body) * volume * env;
     }
   }
 
@@ -298,8 +312,8 @@ function generateBGM(sr) {
     ],
   ];
 
-  // 马林巴副旋律：主旋律的纯五度上方（×1.4983）
-  const marimbaPhrases = phrases.map(phrase =>
+  // 吉他副旋律：主旋律的纯五度上方（×1.4983）
+  const guitarPhrases = phrases.map(phrase =>
     phrase.map(([beatPos, durBeats, freq, legato]) =>
       [beatPos, durBeats, freq * 1.4983, legato]
     )
@@ -346,13 +360,13 @@ function generateBGM(sr) {
       piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    if (config.marimba) {
-      for (const [startBeat, durBeats, freq] of marimbaPhrases[phraseIndex]) {
-        marimba(
+    if (config.guitar) {
+      for (const [startBeat, durBeats, freq] of guitarPhrases[phraseIndex]) {
+        guitar(
           startTime + startBeat * beat,
           freq,
           durBeats * beat * 0.95,
-          config.marimbaVolume || 0.12
+          config.guitarVolume || 0.14
         );
       }
     }
@@ -415,19 +429,19 @@ function generateBGM(sr) {
 
   // ==================== 第二遍（37.5 - 67.5s）====================
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
-    marimba: true, marimbaVolume: 0.11,
+    guitar: true, guitarVolume: 0.13,
     musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
-    marimba: true, marimbaVolume: 0.11,
+    guitar: true, guitarVolume: 0.13,
     musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
-    marimba: true, marimbaVolume: 0.12,
+    guitar: true, guitarVolume: 0.14,
     musicBox: true, strings: true, cello: true, harp: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
-    marimba: true, marimbaVolume: 0.11,
+    guitar: true, guitarVolume: 0.13,
     musicBox: true, strings: true, cello: true, harp: true,
   });
 
@@ -443,9 +457,9 @@ function generateBGM(sr) {
     piano(startTime + 5 * beat, F.G4, 4 * beat, 0.16, false);
     piano(startTime + 6 * beat, F.C5, 8 * beat, 0.14, 'veryLegato');
 
-    marimba(startTime + 2 * beat, F.C5 * 1.4983, 2 * beat, 0.10);
-    marimba(startTime + 4 * beat, F.E5 * 1.4983, 2 * beat, 0.09);
-    marimba(startTime + 6 * beat, F.G5 * 1.4983, 3 * beat, 0.07);
+    guitar(startTime + 2 * beat, F.C5 * 1.4983, 2 * beat, 0.10);
+    guitar(startTime + 4 * beat, F.E5 * 1.4983, 2 * beat, 0.09);
+    guitar(startTime + 6 * beat, F.G5 * 1.4983, 3 * beat, 0.07);
   }
 
   // ==================== 归一化 ====================
