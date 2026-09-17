@@ -1,10 +1,6 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v28：75s 两遍式 + 马林巴副旋律（替代长笛，去啸叫）
-// 总长 75s：
-//   0-30s      第一遍 ABCD（轻）
-//   30-37.5s   间奏（海浪+竖琴）
-//   37.5-67.5s 第二遍 ABCD（全乐器 + 马林巴）
-//   67.5-75s   尾奏（钢琴 + 马林巴渐弱）
+// 方案D改良版 v29：马林巴副旋律改为纯五度（1.4983）
+// 解决 v28 的调外音和失真颤音
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -14,11 +10,10 @@ self.onmessage = function (e) {
 
 function generateBGM(sr) {
   const bpm = 96;
-  const beat = 60 / bpm;                    // 0.625s
-  const barDuration = 4 * beat;             // 2.5s（1 小节）
-  const phraseDuration = 3 * barDuration;   // 7.5s（1 句 = 3 小节）
+  const beat = 60 / bpm;
+  const barDuration = 4 * beat;
+  const phraseDuration = 3 * barDuration;
 
-  // 结构时间点
   const FIRST_START  = 0;
   const INTERLUDE    = 30;
   const SECOND_START = 37.5;
@@ -64,7 +59,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 马林巴：温暖木质，敲击式起音，不会啸叫 */
+  /** 马林巴：温暖木质，敲击式起音 */
   function marimba(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -166,7 +161,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** globalFade：按大结构设计（v26 定稿版 + 扩展到 75s） */
   function getGlobalFade(t) {
     if (t < 5) return 0;
     else if (t < 7.5) return ((t - 5) / 2.5) * 0.08;
@@ -304,10 +298,10 @@ function generateBGM(sr) {
     ],
   ];
 
-  // 马林巴副旋律：主旋律的大三度上方（×1.2599）
+  // 马林巴副旋律：主旋律的纯五度上方（×1.4983）
   const marimbaPhrases = phrases.map(phrase =>
     phrase.map(([beatPos, durBeats, freq, legato]) =>
-      [beatPos, durBeats, freq * 1.2599, legato]
+      [beatPos, durBeats, freq * 1.4983, legato]
     )
   );
 
@@ -341,22 +335,17 @@ function generateBGM(sr) {
     [F.C6, F.E6, 0.020],
   ];
 
-  // ==================== 背景：海浪 + 微风（整段）====================
   oceanWave(0, TOTAL, 0.20);
   breeze(0, TOTAL, 0.30);
-
-  // ==================== 段落渲染辅助 ====================
 
   function renderPhrase(startTime, phraseIndex, config) {
     const melody = phrases[phraseIndex];
     const chords = phraseChords[phraseIndex];
 
-    // 1. 钢琴主旋律
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
-    // 2. 马林巴副旋律
     if (config.marimba) {
       for (const [startBeat, durBeats, freq] of marimbaPhrases[phraseIndex]) {
         marimba(
@@ -368,7 +357,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 3. 弦乐组
     if (config.strings) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -378,7 +366,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 4. 大提琴
     if (config.cello) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -387,7 +374,6 @@ function generateBGM(sr) {
       }
     }
 
-    // 5. 竖琴
     if (config.harp) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -397,29 +383,20 @@ function generateBGM(sr) {
       }
     }
 
-    // 6. 八音盒
     if (config.musicBox) {
       const [b1, b2, boxVol] = boxPairs[phraseIndex];
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
     }
   }
 
-  // ==================== 第一遍（0 - 30s，轻）====================
-  renderPhrase(FIRST_START + 0 * phraseDuration, 0, {
-    musicBox: true,
-  });
-  renderPhrase(FIRST_START + 1 * phraseDuration, 1, {
-    musicBox: true,
-  });
+  // ==================== 第一遍（0 - 30s）====================
+  renderPhrase(FIRST_START + 0 * phraseDuration, 0, { musicBox: true });
+  renderPhrase(FIRST_START + 1 * phraseDuration, 1, { musicBox: true });
   renderPhrase(FIRST_START + 2 * phraseDuration, 2, {
-    musicBox: true,
-    strings: true,
-    cello: true,
+    musicBox: true, strings: true, cello: true,
   });
   renderPhrase(FIRST_START + 3 * phraseDuration, 3, {
-    musicBox: true,
-    strings: true,
-    cello: true,
+    musicBox: true, strings: true, cello: true,
   });
 
   // ==================== 间奏（30 - 37.5s）====================
@@ -436,39 +413,28 @@ function generateBGM(sr) {
     }
   }
 
-  // ==================== 第二遍（37.5 - 67.5s，满）====================
+  // ==================== 第二遍（37.5 - 67.5s）====================
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
     marimba: true, marimbaVolume: 0.11,
-    musicBox: true,
-    strings: true,
-    cello: true,
+    musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
     marimba: true, marimbaVolume: 0.11,
-    musicBox: true,
-    strings: true,
-    cello: true,
+    musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
     marimba: true, marimbaVolume: 0.12,
-    musicBox: true,
-    strings: true,
-    cello: true,
-    harp: true,
+    musicBox: true, strings: true, cello: true, harp: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
     marimba: true, marimbaVolume: 0.11,
-    musicBox: true,
-    strings: true,
-    cello: true,
-    harp: true,
+    musicBox: true, strings: true, cello: true, harp: true,
   });
 
   // ==================== 尾奏（67.5 - 75s）====================
   {
     const startTime = OUTRO_START;
 
-    // 钢琴：慢速 C 大调琶音
     piano(startTime + 0 * beat, F.C4, 4 * beat, 0.26, false);
     piano(startTime + 1 * beat, F.E4, 4 * beat, 0.24, false);
     piano(startTime + 2 * beat, F.G4, 4 * beat, 0.22, false);
@@ -477,10 +443,9 @@ function generateBGM(sr) {
     piano(startTime + 5 * beat, F.G4, 4 * beat, 0.16, false);
     piano(startTime + 6 * beat, F.C5, 8 * beat, 0.14, 'veryLegato');
 
-    // 马林巴：高八度呼应
-    marimba(startTime + 2 * beat, F.C5, 2 * beat, 0.10);
-    marimba(startTime + 4 * beat, F.E5, 2 * beat, 0.09);
-    marimba(startTime + 6 * beat, F.G5, 3 * beat, 0.07);
+    marimba(startTime + 2 * beat, F.C5 * 1.4983, 2 * beat, 0.10);
+    marimba(startTime + 4 * beat, F.E5 * 1.4983, 2 * beat, 0.09);
+    marimba(startTime + 6 * beat, F.G5 * 1.4983, 3 * beat, 0.07);
   }
 
   // ==================== 归一化 ====================
@@ -494,7 +459,6 @@ function generateBGM(sr) {
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
-  // 首尾淡入淡出
   const fin = Math.floor(sr * 0.05);
   const fout = Math.floor(sr * 0.4);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
