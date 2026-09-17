@@ -250,7 +250,7 @@ function generateBGM(sr) {
     }
   }
 
-  /** 沙锤：短促的白噪声 + 高通 */
+  /** 沙锤：柔和版，短促的白噪声 + 中通滤波 */
   function shaker(startT, volume) {
     const dur = 0.1;
     const s0 = Math.floor(startT * sr);
@@ -258,10 +258,10 @@ function generateBGM(sr) {
     let lp = 0;
     for (let i = s0; i < s1; i++) {
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.002));
+      const attack = Math.min(1, pos / (sr * 0.004));   // 4ms 柔和起音
       const decay = Math.exp(-pos / (sr * 0.025));
       const noise = Math.random() * 2 - 1;
-      lp += 0.6 * (noise - lp);
+      lp += 0.35 * (noise - lp);                        // 0.6 → 0.35，降低高频
       const hp = noise - lp;
       data[i] += hp * volume * attack * decay;
     }
