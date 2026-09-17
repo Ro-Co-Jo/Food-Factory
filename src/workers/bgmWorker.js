@@ -1,5 +1,8 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v30：马林巴换尼龙弦吉他，音色沉而稳
+// 方案D改良版 v31：
+// - 吉他改为下三度（×0.8409，流行乐里的"六度和声"）
+// - 吉他音色改为指弹（泛音丰富不刺耳）
+// - 尾奏琶音改为下行到 C3
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -23,6 +26,7 @@ function generateBGM(sr) {
   const data = new Float32Array(length);
 
   const F = {
+    C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61,
     B3: 246.94,
     G3: 196.00, A3: 220.00,
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
@@ -59,11 +63,11 @@ function generateBGM(sr) {
   }
 
   /**
-   * 尼龙弦吉他：沉而稳，不剔透
-   * - 谐波：1次 + 2次(0.12) + 3次(0.04) + 5次(0.015)，无 4/10 次
-   * - attack 6ms 柔和拨弦
-   * - decay 2.0s 长尾音
-   * - 加一点低八度共鸣（琴箱）
+   * 指弹吉他：泛音丰富、自然不刺耳
+   * - attack 10ms 柔和拨弦
+   * - decay 1.8s 指弹尾音
+   * - 谐波：1次 + 2次(0.08) + 3次(0.03) + 4次(0.02) + 5次(0.01)
+   * - body：低八度 ×0.04 琴箱共鸣
    */
   function guitar(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
@@ -73,22 +77,19 @@ function generateBGM(sr) {
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
-      // 柔和拨弦：6ms
-      const attack = Math.min(1, pos / (sr * 0.006));
-      // 长尾音：2.0s
-      const decay = Math.exp(-pos / (sr * 2.0));
+      const attack = Math.min(1, pos / (sr * 0.01));
+      const decay = Math.exp(-pos / (sr * 1.8));
       const release = Math.min(1, (len - pos) / (sr * 0.5));
       const env = attack * decay * release;
 
-      // 尼龙弦主体：低次谐波为主，温暖
       const wave =
         Math.sin(2 * Math.PI * freq * t) +
-        0.12 * Math.sin(2 * Math.PI * freq * 2 * t) +
-        0.04 * Math.sin(2 * Math.PI * freq * 3 * t) +
-        0.015 * Math.sin(2 * Math.PI * freq * 5 * t);
+        0.08 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.03 * Math.sin(2 * Math.PI * freq * 3 * t) +
+        0.02 * Math.sin(2 * Math.PI * freq * 4 * t) +
+        0.01 * Math.sin(2 * Math.PI * freq * 5 * t);
 
-      // 琴箱共鸣：低八度极轻垫底
-      const body = 0.05 * Math.sin(2 * Math.PI * freq * 0.5 * t);
+      const body = 0.04 * Math.sin(2 * Math.PI * freq * 0.5 * t);
 
       data[i] += (wave + body) * volume * env;
     }
@@ -312,10 +313,10 @@ function generateBGM(sr) {
     ],
   ];
 
-  // 吉他副旋律：主旋律的纯五度上方（×1.4983）
+  // 吉他副旋律：主旋律的下三度（×0.8409，流行乐里的"六度和声"）
   const guitarPhrases = phrases.map(phrase =>
     phrase.map(([beatPos, durBeats, freq, legato]) =>
-      [beatPos, durBeats, freq * 1.4983, legato]
+      [beatPos, durBeats, freq * 0.8409, legato]
     )
   );
 
@@ -449,17 +450,19 @@ function generateBGM(sr) {
   {
     const startTime = OUTRO_START;
 
-    piano(startTime + 0 * beat, F.C4, 4 * beat, 0.26, false);
-    piano(startTime + 1 * beat, F.E4, 4 * beat, 0.24, false);
-    piano(startTime + 2 * beat, F.G4, 4 * beat, 0.22, false);
-    piano(startTime + 3 * beat, F.C5, 6 * beat, 0.20, false);
-    piano(startTime + 4 * beat, F.E4, 4 * beat, 0.18, false);
-    piano(startTime + 5 * beat, F.G4, 4 * beat, 0.16, false);
-    piano(startTime + 6 * beat, F.C5, 8 * beat, 0.14, 'veryLegato');
+    // 下行琶音：C5 → G4 → E4 → C4 → G3 → E3 → C3
+    piano(startTime + 0 * beat, F.C5, 1.2 * beat, 0.26, false);
+    piano(startTime + 1 * beat, F.G4, 1.2 * beat, 0.25, false);
+    piano(startTime + 2 * beat, F.E4, 1.2 * beat, 0.24, false);
+    piano(startTime + 3 * beat, F.C4, 1.2 * beat, 0.23, false);
+    piano(startTime + 4 * beat, F.G3, 1.2 * beat, 0.22, false);
+    piano(startTime + 5 * beat, F.E3, 1.2 * beat, 0.21, false);
+    piano(startTime + 6 * beat, F.C3, 8 * beat, 0.20, 'veryLegato');
 
-    guitar(startTime + 2 * beat, F.C5 * 1.4983, 2 * beat, 0.10);
-    guitar(startTime + 4 * beat, F.E5 * 1.4983, 2 * beat, 0.09);
-    guitar(startTime + 6 * beat, F.G5 * 1.4983, 3 * beat, 0.07);
+    // 吉他：下行时在上方点缀五度泛音
+    guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.09);
+    guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.08);
+    guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.07);
   }
 
   // ==================== 归一化 ====================
