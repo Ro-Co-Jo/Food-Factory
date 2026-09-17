@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v42：修 cello/string detune 嗡嗡，harp 改琶音，加 woodblock
+// v43：修 B 段奇怪声音（旋律不升调 + 换和弦 + 关 flute/pianoEcho + vocalPad 只铺根音五度）
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -107,6 +107,8 @@ function generateBGM(sr) {
     const len = s1 - s0;
     if (len <= 0) return;
     let breathLp = 0;
+    let lp = 0;
+    const lpAlpha = 0.35;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -123,7 +125,8 @@ function generateBGM(sr) {
       breathLp += 0.25 * (noise - breathLp);
       const breathEnv = Math.exp(-pos / (sr * 0.04));
       const breath = breathLp * breathEnv * 0.06;
-      data[i] += (wave + breath) * volume * attack * release;
+      lp += lpAlpha * (wave - lp);
+      data[i] += (lp + breath) * volume * attack * release;
     }
   }
 
@@ -172,7 +175,6 @@ function generateBGM(sr) {
     }
   }
 
-  // detune 从 1.0006 降到 1.0003，减少慢拍频
   function stringEnsemble(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const actualDur = dur * 1.8;
@@ -216,7 +218,6 @@ function generateBGM(sr) {
     }
   }
 
-  // detune 从 ±0.15% 降到 ±0.04%，去掉 0.3% 拍频的嗡嗡
   function celloSection(startT, freq, dur, volume) {
     const extendedDur = dur * 1.5;
     cello(startT, freq, extendedDur, volume * 0.40, 1.0000);
@@ -571,17 +572,17 @@ function generateBGM(sr) {
     ],
   ];
 
-  const bPhrases = phrases[2].map(([sb, db, f, leg]) => [sb, db, f * 1.5, leg]);
+  // B 段：旋律不升调，用 phrases[2]；和弦换成 F - G - C
   const bChords = [
-    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
-    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
-    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },   // F
+    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },     // G
+    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },     // C
   ];
 
   const boxPairs = {
     0: [F.C6, F.E6, 0.020],
     1: [F.B5, F.D6, 0.020],
-    2: [F.E6, F.G6, 0.010],
+    2: [F.C6, F.E6, 0.012],   // B 段改成 C6/E6，不再用 E6/G6
     3: [F.C6, F.E6, 0.020],
     4: [F.G5, F.B5, 0.018],
     5: [F.A5, F.C6, 0.016],
@@ -665,7 +666,6 @@ function generateBGM(sr) {
     if (config.pizz) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
-        // pizz 只弹五度，避免和 cello 根音同频叠加出低频嗡
         pizzBass(barStart, chords[b].notes[1], config.pizzVolume || 0.12);
         pizzBass(barStart + 2 * beat, chords[b].notes[1], (config.pizzVolume || 0.12) * 0.8);
       }
@@ -675,12 +675,10 @@ function generateBGM(sr) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
         const c = chords[b];
-        // 上行琶音
         harpHarmonic(barStart + 0.0 * beat, c.notes[0], 0.020);
         harpHarmonic(barStart + 0.5 * beat, c.notes[1], 0.019);
         harpHarmonic(barStart + 1.0 * beat, c.notes[2], 0.018);
         harpHarmonic(barStart + 1.5 * beat, c.notes[3], 0.017);
-        // 下行回声
         harpHarmonic(barStart + 2.5 * beat, c.notes[2], 0.016);
         harpHarmonic(barStart + 3.0 * beat, c.notes[1], 0.015);
         harpHarmonic(barStart + 3.5 * beat, c.notes[0], 0.014);
@@ -701,11 +699,12 @@ function generateBGM(sr) {
     }
 
     if (config.vocalPad) {
+      // 只铺根音 + 五度，避免四音全铺和 strings 低频叠出嗡嗡
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
-        for (const note of chords[b].notes) {
-          vocalPad(barStart, note, barDuration, (config.vocalPadVolume || 0.05));
-        }
+        const c = chords[b];
+        vocalPad(barStart, c.notes[0], barDuration, config.vocalPadVolume || 0.05);
+        vocalPad(barStart, c.notes[2], barDuration, (config.vocalPadVolume || 0.05) * 0.7);
       }
     }
 
@@ -813,28 +812,29 @@ function generateBGM(sr) {
   // ==================== B（82 - 102s）====================
   harpGliss(B_START - 1.2, F.C5, 12, 0.018);
   markTree(B_START - 0.4, 0.016);
+
+  // B 段：旋律不升调，和弦 F - G - C，关 flute / pianoEcho，加 musicBox
   renderPhrase(B_START + 0 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
     strings: true, cello: true,
     pizz: true, pizzVolume: 0.13,
-    flute: true, fluteVolume: 0.07,
+    musicBox: true,
     vocalPad: true, vocalPadVolume: 0.045,
-    pianoEcho: true,
     shaker: true, drums: true,
     woodblock: true,
-  }, bPhrases, bChords);
+  }, phrases[2], bChords);
+
   renderPhrase(B_START + 1 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
     strings: true, cello: true,
     pizz: true, pizzVolume: 0.13,
-    flute: true, fluteVolume: 0.07,
+    musicBox: true,
     vocalPad: true, vocalPadVolume: 0.045,
-    pianoEcho: true,
     shaker: true, drums: true,
     woodblock: true,
-  }, bPhrases, bChords);
+  }, phrases[2], bChords);
 
   // ==================== Outro（102 - 118s）====================
   {
@@ -855,8 +855,7 @@ function generateBGM(sr) {
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
 
     vocalPad(startTime + 6 * beat, F.C4, 16 * beat, 0.05);
-    vocalPad(startTime + 6 * beat, F.E4, 16 * beat, 0.04);
-    vocalPad(startTime + 6 * beat, F.G4, 16 * beat, 0.03);
+    vocalPad(startTime + 6 * beat, F.G4, 16 * beat, 0.035);
 
     glockenspiel(startTime + 0.7, F.C6, 0.014);
     glockenspiel(startTime + 1.5, F.G5, 0.013);
