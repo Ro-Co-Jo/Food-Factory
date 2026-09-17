@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v46：海浪/风声降下来，沙锤 attack 变柔，Outro 加尾奏旋律
+// v47：去掉所有打击乐，pizzBass 改 4 次/小节，B 段扫弦加强
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -264,68 +264,7 @@ function generateBGM(sr) {
     }
   }
 
-  // 沙锤：attack 12ms，decay 45ms，低通 0.25
-  function shaker(startT, volume) {
-    const dur = 0.14;
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    let lp = 0;
-    for (let i = s0; i < s1; i++) {
-      const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.012));
-      const decay = Math.exp(-pos / (sr * 0.045));
-      const noise = Math.random() * 2 - 1;
-      lp += 0.25 * (noise - lp);
-      const hp = noise - lp;
-      data[i] += hp * volume * attack * decay;
-    }
-  }
-
-  function softKick(startT, volume) {
-    const dur = 0.25;
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    for (let i = s0; i < s1; i++) {
-      const pos = i - s0;
-      const t = pos / sr;
-      const pitch = 55 * Math.exp(-t * 18) + 40;
-      const decay = Math.exp(-pos / (sr * 0.08));
-      data[i] += Math.sin(2 * Math.PI * pitch * t) * volume * decay;
-    }
-  }
-
-  function brushSnare(startT, volume) {
-    const dur = 0.12;
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    let lp = 0;
-    for (let i = s0; i < s1; i++) {
-      const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.002));
-      const decay = Math.exp(-pos / (sr * 0.04));
-      const noise = Math.random() * 2 - 1;
-      lp += 0.5 * (noise - lp);
-      data[i] += (noise - lp) * volume * attack * decay;
-    }
-  }
-
-  function woodblock(startT, volume) {
-    const dur = 0.08;
-    const s0 = Math.floor(startT * sr);
-    const s1 = Math.floor((startT + dur) * sr);
-    if (s1 <= s0) return;
-    for (let i = s0; i < s1; i++) {
-      const pos = i - s0;
-      const t = pos / sr;
-      const attack = Math.min(1, pos / (sr * 0.001));
-      const decay = Math.exp(-pos / (sr * 0.018));
-      const wave =
-        Math.sin(2 * Math.PI * 880 * t) * 0.6 +
-        Math.sin(2 * Math.PI * 1320 * t) * 0.3 +
-        Math.sin(2 * Math.PI * 1760 * t) * 0.1;
-      data[i] += wave * volume * attack * decay;
-    }
-  }
+  // 打击乐函数保留但不再调用
 
   function farBell(startT, freq, volume) {
     const dur = 6.0;
@@ -360,7 +299,6 @@ function generateBGM(sr) {
     else return Math.max(0, 0.07 * (TOTAL - t) / 2);
   }
 
-  // 风声：alpha 0.010，倍数 6，加远处低通
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -383,7 +321,6 @@ function generateBGM(sr) {
     }
   }
 
-  // 海浪：低通更紧，倍数降到 4.5/3.0，加远处低通
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -525,7 +462,6 @@ function generateBGM(sr) {
     5: [F.A5, F.C6, 0.016],
   };
 
-  // 音量降下来
   oceanWave(0, TOTAL, 0.12);
   breeze(0, TOTAL, 0.18);
 
@@ -601,11 +537,15 @@ function generateBGM(sr) {
       }
     }
 
+    // pizzBass 改成每小节 4 次：根-五-根-五
     if (config.pizz) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
-        pizzBass(barStart, chords[b].notes[1], config.pizzVolume || 0.12);
-        pizzBass(barStart + 2 * beat, chords[b].notes[1], (config.pizzVolume || 0.12) * 0.8);
+        const v = config.pizzVolume || 0.12;
+        pizzBass(barStart + 0 * beat, chords[b].notes[1], v);
+        pizzBass(barStart + 1 * beat, chords[b].notes[2], v * 0.7);
+        pizzBass(barStart + 2 * beat, chords[b].notes[1], v * 0.9);
+        pizzBass(barStart + 3 * beat, chords[b].notes[2], v * 0.7);
       }
     }
 
@@ -628,34 +568,7 @@ function generateBGM(sr) {
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
     }
 
-    if (config.shaker) {
-      for (let b = 0; b < 3; b++) {
-        const barStart = startTime + b * barDuration;
-        for (let i = 0; i < 8; i++) {
-          const t = barStart + i * 0.5 * beat;
-          const vol = (i % 2 === 0) ? 0.11 : 0.06;
-          shaker(t, vol);
-        }
-      }
-    }
-
-    if (config.drums) {
-      for (let b = 0; b < 3; b++) {
-        const barStart = startTime + b * barDuration;
-        softKick(barStart + 0 * beat, 0.06);
-        softKick(barStart + 2 * beat, 0.05);
-        brushSnare(barStart + 1 * beat, 0.04);
-        brushSnare(barStart + 3 * beat, 0.04);
-      }
-    }
-
-    if (config.woodblock) {
-      for (let b = 0; b < 3; b++) {
-        const barStart = startTime + b * barDuration;
-        woodblock(barStart + 1 * beat, 0.020);
-        woodblock(barStart + 3 * beat, 0.018);
-      }
-    }
+    // 打击乐（shaker / drums / woodblock）不再调用
   }
 
   // ==================== A1（12 - 42s）====================
@@ -696,7 +609,6 @@ function generateBGM(sr) {
     musicBox: true, strings: true, cello: true,
     pizz: true, pizzVolume: 0.12,
     pianoEcho: true,
-    shaker: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
     guitarFinger: true, guitarVolume: 0.13,
@@ -704,7 +616,6 @@ function generateBGM(sr) {
     musicBox: true, strings: true, cello: true,
     pizz: true, pizzVolume: 0.12,
     pianoEcho: true,
-    shaker: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.14,
@@ -712,7 +623,6 @@ function generateBGM(sr) {
     musicBox: true, strings: true, cello: true, harp: true,
     pizz: true, pizzVolume: 0.13,
     pianoEcho: true,
-    shaker: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
     guitarFinger: true, guitarVolume: 0.13,
@@ -720,28 +630,23 @@ function generateBGM(sr) {
     musicBox: true, strings: true, cello: true, harp: true,
     pizz: true, pizzVolume: 0.12,
     pianoEcho: true,
-    shaker: true,
   });
 
   // ==================== B（82 - 102s）====================
   renderPhrase(B_START + 0 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.13,
-    guitarStrum: true, strumVolume: 0.10,
+    guitarStrum: true, strumVolume: 0.13,
     strings: true, cello: true,
     pizz: true, pizzVolume: 0.13,
     musicBox: true,
-    shaker: true, drums: true,
-    woodblock: true,
   }, phrases[2], bChords);
 
   renderPhrase(B_START + 1 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.13,
-    guitarStrum: true, strumVolume: 0.10,
+    guitarStrum: true, strumVolume: 0.13,
     strings: true, cello: true,
     pizz: true, pizzVolume: 0.13,
     musicBox: true,
-    shaker: true, drums: true,
-    woodblock: true,
   }, phrases[2], bChords);
 
   // ==================== Outro（102 - 128s）====================
@@ -756,7 +661,7 @@ function generateBGM(sr) {
     piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
     piano(startTime + 6 * beat, F.C4, 32 * beat, 0.20, 'veryLegato');
 
-    // 尾奏旋律：在最后和弦之上，106s 到 120s
+    // 尾奏旋律
     piano(startTime + 6.4 * beat, F.E5, 2 * beat, 0.18, false);
     piano(startTime + 8.8 * beat, F.G4, 2 * beat, 0.17, false);
     piano(startTime + 11.2 * beat, F.C5, 2 * beat, 0.16, false);
@@ -768,7 +673,6 @@ function generateBGM(sr) {
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.09);
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
 
-    // 竖琴泛音作为最后一滴
     harpHarmonic(startTime + 22 * beat, F.G5, 0.018);
 
     glockenspiel(startTime + 0.7, F.C6, 0.014);
