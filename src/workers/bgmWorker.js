@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v45：删 flute，尾奏延长，最后和弦 32 拍，末尾加钢琴/竖琴单音，fout 3.5s
+// v46：海浪/风声降下来，沙锤 attack 变柔，Outro 加尾奏旋律
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -100,8 +100,6 @@ function generateBGM(sr) {
       data[i] += wave * volume * attack * decay * release;
     }
   }
-
-  // flute 函数保留但不再调用
 
   function guitarFingerpick(startTime, notes, volume) {
     const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
@@ -266,17 +264,18 @@ function generateBGM(sr) {
     }
   }
 
+  // 沙锤：attack 12ms，decay 45ms，低通 0.25
   function shaker(startT, volume) {
-    const dur = 0.1;
+    const dur = 0.14;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     let lp = 0;
     for (let i = s0; i < s1; i++) {
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.004));
-      const decay = Math.exp(-pos / (sr * 0.025));
+      const attack = Math.min(1, pos / (sr * 0.012));
+      const decay = Math.exp(-pos / (sr * 0.045));
       const noise = Math.random() * 2 - 1;
-      lp += 0.35 * (noise - lp);
+      lp += 0.25 * (noise - lp);
       const hp = noise - lp;
       data[i] += hp * volume * attack * decay;
     }
@@ -361,13 +360,15 @@ function generateBGM(sr) {
     else return Math.max(0, 0.07 * (TOTAL - t) / 2);
   }
 
+  // 风声：alpha 0.010，倍数 6，加远处低通
   function breeze(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
     const len = s1 - s0;
     if (len <= 0) return;
     let lp = 0;
-    const alpha = 0.015;
+    let lpFar = 0;
+    const alpha = 0.010;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const noise = Math.random() * 2 - 1;
@@ -377,10 +378,12 @@ function generateBGM(sr) {
         0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
         0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
       const globalFade = getGlobalFade(startT + t);
-      data[i] += lp * env * globalFade * volume * 15;
+      lpFar += 0.06 * (lp - lpFar);
+      data[i] += lpFar * env * globalFade * volume * 6;
     }
   }
 
+  // 海浪：低通更紧，倍数降到 4.5/3.0，加远处低通
   function oceanWave(startT, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -389,6 +392,7 @@ function generateBGM(sr) {
 
     let lpSurge = 0;
     let lpFall = 0;
+    let lpFar = 0;
     let wave = { active: false, elapsed: 0, duration: 0, peak: 0, riseRatio: 0 };
     let nextIn = 1.5;
 
@@ -435,14 +439,17 @@ function generateBGM(sr) {
 
       const n1 = Math.random() * 2 - 1;
       const n2 = Math.random() * 2 - 1;
-      lpSurge += 0.010 * (n1 - lpSurge);
-      lpFall += 0.025 * (n2 - lpFall);
+      lpSurge += 0.006 * (n1 - lpSurge);
+      lpFall += 0.018 * (n2 - lpFall);
 
-      const sample = lpSurge * surgeAmp * 8.0 + lpFall * fallAmp * 5.0;
+      const sample = lpSurge * surgeAmp * 4.5 + lpFall * fallAmp * 3.0;
       const activity = Math.max(surgeAmp, fallAmp);
       const env = bigEnv * (0.10 + activity * 0.9);
 
-      data[i] += sample * env * globalFade * volume;
+      lpFar += 0.08 * (sample - lpFar);
+      const farSample = lpFar * 0.7 + sample * 0.3;
+
+      data[i] += farSample * env * globalFade * volume;
     }
   }
 
@@ -518,8 +525,9 @@ function generateBGM(sr) {
     5: [F.A5, F.C6, 0.016],
   };
 
-  oceanWave(0, TOTAL, 0.20);
-  breeze(0, TOTAL, 0.30);
+  // 音量降下来
+  oceanWave(0, TOTAL, 0.12);
+  breeze(0, TOTAL, 0.18);
 
   // ==================== Intro（0 - 12s）====================
   farBell(2.0, F.C3, 0.018);
@@ -619,8 +627,6 @@ function generateBGM(sr) {
       const [b1, b2, boxVol] = boxPairs[phraseIndex];
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
     }
-
-    // flute 不再调用
 
     if (config.shaker) {
       for (let b = 0; b < 3; b++) {
@@ -748,15 +754,21 @@ function generateBGM(sr) {
     piano(startTime + 3 * beat, F.G4, 1.2 * beat, 0.23, false);
     piano(startTime + 4 * beat, F.E4, 1.2 * beat, 0.22, false);
     piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
-    // 最后和弦从 24 拍延到 32 拍，到 122.75s
     piano(startTime + 6 * beat, F.C4, 32 * beat, 0.20, 'veryLegato');
+
+    // 尾奏旋律：在最后和弦之上，106s 到 120s
+    piano(startTime + 6.4 * beat, F.E5, 2 * beat, 0.18, false);
+    piano(startTime + 8.8 * beat, F.G4, 2 * beat, 0.17, false);
+    piano(startTime + 11.2 * beat, F.C5, 2 * beat, 0.16, false);
+    piano(startTime + 13.6 * beat, F.A4, 2 * beat, 0.15, false);
+    piano(startTime + 16 * beat, F.G4, 3 * beat, 0.14, false);
+    piano(startTime + 19.2 * beat, F.E4, 4 * beat, 0.13, 'veryLegato');
 
     guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.10);
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.09);
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
 
-    // 最后一滴水：C6 钢琴 + G5 竖琴泛音，在 122s 和 123.5s
-    piano(startTime + 20 * beat, F.C6, 6 * beat, 0.07, 'veryLegato');
+    // 竖琴泛音作为最后一滴
     harpHarmonic(startTime + 22 * beat, F.G5, 0.018);
 
     glockenspiel(startTime + 0.7, F.C6, 0.014);
