@@ -1,8 +1,7 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v31：
-// - 吉他改为下三度（×0.8409，流行乐里的"六度和声"）
-// - 吉他音色改为指弹（泛音丰富不刺耳）
-// - 尾奏琶音改为下行到 C3
+// 方案D改良版 v32：
+// - 吉他改为分解和弦（8 分音符，和弦内音）
+// - 尾奏琶音保持 C5→C3 下行
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -62,13 +61,7 @@ function generateBGM(sr) {
     }
   }
 
-  /**
-   * 指弹吉他：泛音丰富、自然不刺耳
-   * - attack 10ms 柔和拨弦
-   * - decay 1.8s 指弹尾音
-   * - 谐波：1次 + 2次(0.08) + 3次(0.03) + 4次(0.02) + 5次(0.01)
-   * - body：低八度 ×0.04 琴箱共鸣
-   */
+  /** 指弹吉他：泛音自然不刺耳 */
   function guitar(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -92,6 +85,17 @@ function generateBGM(sr) {
       const body = 0.04 * Math.sin(2 * Math.PI * freq * 0.5 * t);
 
       data[i] += (wave + body) * volume * env;
+    }
+  }
+
+  /** 吉他分解和弦：每小节 8 个八分音符，走和弦内音 */
+  function guitarArpeggio(startTime, notes, volume) {
+    // notes = [根音, 三音, 五音, 高八度根音]
+    // 弹奏顺序：根-三-五-高-五-三-根-三
+    const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
+    for (let i = 0; i < 8; i++) {
+      const t = startTime + i * 0.5 * beat;
+      guitar(t, notes[pattern[i]], 0.5 * beat * 0.98, volume);
     }
   }
 
@@ -313,13 +317,7 @@ function generateBGM(sr) {
     ],
   ];
 
-  // 吉他副旋律：主旋律的下三度（×0.8409，流行乐里的"六度和声"）
-  const guitarPhrases = phrases.map(phrase =>
-    phrase.map(([beatPos, durBeats, freq, legato]) =>
-      [beatPos, durBeats, freq * 0.8409, legato]
-    )
-  );
-
+  // 和弦定义（每个小节一个和弦）
   const phraseChords = [
     [
       { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
@@ -357,21 +355,20 @@ function generateBGM(sr) {
     const melody = phrases[phraseIndex];
     const chords = phraseChords[phraseIndex];
 
+    // 1. 钢琴主旋律
     for (const [startBeat, durBeats, freq, legato] of melody) {
       piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
     }
 
+    // 2. 吉他分解和弦（每小节 8 个八分音符）
     if (config.guitar) {
-      for (const [startBeat, durBeats, freq] of guitarPhrases[phraseIndex]) {
-        guitar(
-          startTime + startBeat * beat,
-          freq,
-          durBeats * beat * 0.95,
-          config.guitarVolume || 0.14
-        );
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        guitarArpeggio(barStart, chords[b].notes, config.guitarVolume || 0.09);
       }
     }
 
+    // 3. 弦乐组
     if (config.strings) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -381,6 +378,7 @@ function generateBGM(sr) {
       }
     }
 
+    // 4. 大提琴
     if (config.cello) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -389,6 +387,7 @@ function generateBGM(sr) {
       }
     }
 
+    // 5. 竖琴
     if (config.harp) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -398,6 +397,7 @@ function generateBGM(sr) {
       }
     }
 
+    // 6. 八音盒
     if (config.musicBox) {
       const [b1, b2, boxVol] = boxPairs[phraseIndex];
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
@@ -430,39 +430,46 @@ function generateBGM(sr) {
 
   // ==================== 第二遍（37.5 - 67.5s）====================
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
-    guitar: true, guitarVolume: 0.13,
+    guitar: true, guitarVolume: 0.09,
     musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
-    guitar: true, guitarVolume: 0.13,
+    guitar: true, guitarVolume: 0.09,
     musicBox: true, strings: true, cello: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
-    guitar: true, guitarVolume: 0.14,
+    guitar: true, guitarVolume: 0.10,
     musicBox: true, strings: true, cello: true, harp: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
-    guitar: true, guitarVolume: 0.13,
+    guitar: true, guitarVolume: 0.09,
     musicBox: true, strings: true, cello: true, harp: true,
   });
 
   // ==================== 尾奏（67.5 - 75s）====================
   {
+    // ==================== 尾奏（67.5 - 75s）====================
+  {
     const startTime = OUTRO_START;
 
-    // 下行琶音：C5 → G4 → E4 → C4 → G3 → E3 → C3
+    // 下行琶音：C5 → G4 → E4 → G4 → E4 → G3 → C4
     piano(startTime + 0 * beat, F.C5, 1.2 * beat, 0.26, false);
     piano(startTime + 1 * beat, F.G4, 1.2 * beat, 0.25, false);
     piano(startTime + 2 * beat, F.E4, 1.2 * beat, 0.24, false);
-    piano(startTime + 3 * beat, F.C4, 1.2 * beat, 0.23, false);
-    piano(startTime + 4 * beat, F.G3, 1.2 * beat, 0.22, false);
-    piano(startTime + 5 * beat, F.E3, 1.2 * beat, 0.21, false);
-    piano(startTime + 6 * beat, F.C3, 8 * beat, 0.20, 'veryLegato');
+    piano(startTime + 3 * beat, F.G4, 1.2 * beat, 0.23, false);
+    piano(startTime + 4 * beat, F.E4, 1.2 * beat, 0.22, false);
+    piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
+    piano(startTime + 6 * beat, F.C4, 8 * beat, 0.20, 'veryLegato');
 
-    // 吉他：下行时在上方点缀五度泛音
-    guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.09);
-    guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.08);
-    guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.07);
+    // 吉他：下行时在上方点缀
+    guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.08);
+    guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.07);
+    guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.06);
+  }
+    // 吉他：跟着下行做泛音点缀
+    guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.08);
+    guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.07);
+    guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.06);
   }
 
   // ==================== 归一化 ====================
