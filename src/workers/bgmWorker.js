@@ -1,8 +1,5 @@
 // src/workers/bgmWorker.js
-// 方案D改良版 v39：
-// - 第一把吉他：指弹分解
-// - 第二把吉他：扫弦（根音 + 扫弦，经典流行 pattern）
-// - 沙锤音量提升到 0.11/0.06
+// v40：延长到 112s，新增 B 段与节奏/氛围层
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -16,23 +13,23 @@ function generateBGM(sr) {
   const barDuration = 4 * beat;
   const phraseDuration = 3 * barDuration;
 
-  const FIRST_START  = 0;
-  const INTERLUDE    = 30;
-  const SECOND_START = 37.5;
-  const OUTRO_START  = 67.5;
-  const TOTAL        = 75;
+  const INTRO_START   = 0;
+  const FIRST_START   = 12;
+  const INTERLUDE     = 42;
+  const SECOND_START  = 52;
+  const B_START       = 82;
+  const OUTRO_START   = 102;
+  const TOTAL         = 112;
 
   const length = Math.floor(sr * TOTAL);
   const data = new Float32Array(length);
 
   const F = {
     C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61,
-    B3: 246.94,
-    G3: 196.00, A3: 220.00,
+    G3: 196.00, A3: 220.00, B3: 246.94,
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
-    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99,
-    B5: 987.77,
-    C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98,
+    C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+    C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98, A6: 1760.00,
   };
 
   // ==================== 音色 ====================
@@ -44,8 +41,8 @@ function generateBGM(sr) {
     const len = s1 - s0;
     if (len <= 0) return;
     let at = 0.18, vf = 1.0;
-    if (legato === 'veryLegato') { at = 0.7; vf = 0.58; }
-    else if (legato === true) { at = 0.5; vf = 0.70; }
+    if (legato === 'veryLegato') { at = 0.45; vf = 0.58; }
+    else if (legato === true) { at = 0.35; vf = 0.70; }
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -62,7 +59,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 吉他单音（指弹/扫弦共用） */
   function guitar(startT, freq, dur, volume) {
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
@@ -75,24 +71,55 @@ function generateBGM(sr) {
       const decay = Math.exp(-pos / (sr * 1.8));
       const release = Math.min(1, (len - pos) / (sr * 0.5));
       const env = attack * decay * release;
-
       const wave =
         Math.sin(2 * Math.PI * freq * t) +
         0.08 * Math.sin(2 * Math.PI * freq * 2 * t) +
         0.03 * Math.sin(2 * Math.PI * freq * 3 * t) +
         0.02 * Math.sin(2 * Math.PI * freq * 4 * t) +
         0.01 * Math.sin(2 * Math.PI * freq * 5 * t);
-
       const body = 0.04 * Math.sin(2 * Math.PI * freq * 0.5 * t);
-
       data[i] += (wave + body) * volume * env;
     }
   }
 
-  /**
-   * 第一把吉他：指弹分解和弦
-   * pattern: 根-三-五-高-五-三-根-三
-   */
+  function nylonGuitar(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.008));
+      const decay = Math.exp(-pos / (sr * 2.2));
+      const release = Math.min(1, (len - pos) / (sr * 0.4));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.05 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.02 * Math.sin(2 * Math.PI * freq * 3 * t);
+      data[i] += wave * volume * attack * decay * release;
+    }
+  }
+
+  function flute(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.08));
+      const release = Math.min(1, (len - pos) / (sr * 0.3));
+      const vib = 1 + 0.004 * Math.sin(2 * Math.PI * 5.2 * t);
+      const wave =
+        Math.sin(2 * Math.PI * freq * vib * t) +
+        0.15 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.05 * Math.sin(2 * Math.PI * freq * 3 * t);
+      data[i] += wave * volume * attack * release;
+    }
+  }
+
   function guitarFingerpick(startTime, notes, volume) {
     const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
     for (let i = 0; i < 8; i++) {
@@ -101,19 +128,14 @@ function generateBGM(sr) {
     }
   }
 
-  /**
-   * 第二把吉他：扫弦（根音 + 扫弦，经典流行 pattern）
-   * 
-   * 节奏 pattern（每小节 4 拍）：
-   *   拍 0：根音 + 下扫（强）
-   *   拍 1：根音 + 下扫
-   *   拍 1.5：上扫（轻）
-   *   拍 2.5：上扫（轻）
-   *   拍 3：根音 + 下扫
-   *   拍 3.5：上扫（轻）
-   * 
-   * 扫弦的实现：和弦内音依次错开 12ms 触发，模拟"扫"的效果
-   */
+  function nylonFingerpick(startTime, notes, volume) {
+    const pattern = [0, 2, 1, 3, 2, 3, 1, 2];
+    for (let i = 0; i < 8; i++) {
+      const t = startTime + i * 0.5 * beat;
+      nylonGuitar(t, notes[pattern[i]], 0.5 * beat * 0.98, volume);
+    }
+  }
+
   function guitarStrum(startTime, notes, volume) {
     const strumPattern = [
       { t: 0,   dir: 'down', vol: 1.00, root: true  },
@@ -123,26 +145,19 @@ function generateBGM(sr) {
       { t: 3,   dir: 'down', vol: 0.85, root: true  },
       { t: 3.5, dir: 'up',   vol: 0.55, root: false },
     ];
-
     for (const step of strumPattern) {
       const startBeat = startTime + step.t * beat;
       const strumVol = volume * step.vol;
-
-      // 先弹根音（低音弦单响，作为引导）
       if (step.root) {
         guitar(startBeat, notes[0], 0.5 * beat * 0.98, strumVol * 1.1);
       }
-
-      // 然后扫弦（错开 12ms 依次触发）
       if (step.dir === 'down') {
         for (let i = 0; i < notes.length; i++) {
-          const t = startBeat + 0.01 + i * 0.012;
-          guitar(t, notes[i], 0.5 * beat * 0.98, strumVol);
+          guitar(startBeat + 0.01 + i * 0.012, notes[i], 0.5 * beat * 0.98, strumVol);
         }
       } else {
         for (let i = notes.length - 1; i >= 0; i--) {
-          const t = startBeat + (notes.length - 1 - i) * 0.012;
-          guitar(t, notes[i], 0.5 * beat * 0.98, strumVol * 0.8);
+          guitar(startBeat + (notes.length - 1 - i) * 0.012, notes[i], 0.5 * beat * 0.98, strumVol * 0.8);
         }
       }
     }
@@ -198,10 +213,32 @@ function generateBGM(sr) {
     cello(startT, freq, extendedDur, volume * 0.30, 0.9985);
   }
 
+  function pizzBass(startT, freq, volume) {
+    const dur = 0.4;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.005));
+      const decay = Math.exp(-pos / (sr * 0.18));
+      const release = Math.min(1, (len - pos) / (sr * 0.1));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.25 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.08 * Math.sin(2 * Math.PI * freq * 3 * t);
+      data[i] += wave * volume * attack * decay * release;
+    }
+  }
+
   function harpHarmonic(startT, freq, volume) {
     const dur = 2.5;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -220,6 +257,8 @@ function generateBGM(sr) {
     const dur = 1.5;
     const s0 = Math.floor(startT * sr);
     const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
       const pos = i - s0;
@@ -231,7 +270,6 @@ function generateBGM(sr) {
     }
   }
 
-  /** 钟琴：单音，无颤音无拍频 */
   function glockenspiel(startT, freq, volume) {
     const dur = 1.8;
     const s0 = Math.floor(startT * sr);
@@ -250,7 +288,13 @@ function generateBGM(sr) {
     }
   }
 
-  /** 沙锤：柔和版，短促的白噪声 + 中通滤波 */
+  function markTree(startT, volume) {
+    const notes = [1046.5, 1174.7, 1318.5, 1568.0, 1760.0, 2093.0];
+    for (let i = 0; i < notes.length; i++) {
+      glockenspiel(startT + i * 0.06, notes[i], volume * (1 - i * 0.08));
+    }
+  }
+
   function shaker(startT, volume) {
     const dur = 0.1;
     const s0 = Math.floor(startT * sr);
@@ -258,26 +302,75 @@ function generateBGM(sr) {
     let lp = 0;
     for (let i = s0; i < s1; i++) {
       const pos = i - s0;
-      const attack = Math.min(1, pos / (sr * 0.004));   // 4ms 柔和起音
+      const attack = Math.min(1, pos / (sr * 0.004));
       const decay = Math.exp(-pos / (sr * 0.025));
       const noise = Math.random() * 2 - 1;
-      lp += 0.35 * (noise - lp);                        // 0.6 → 0.35，降低高频
+      lp += 0.35 * (noise - lp);
       const hp = noise - lp;
       data[i] += hp * volume * attack * decay;
     }
   }
 
+  function softKick(startT, volume) {
+    const dur = 0.25;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    for (let i = s0; i < s1; i++) {
+      const pos = i - s0;
+      const t = pos / sr;
+      const pitch = 55 * Math.exp(-t * 18) + 40;
+      const decay = Math.exp(-pos / (sr * 0.08));
+      data[i] += Math.sin(2 * Math.PI * pitch * t) * volume * decay;
+    }
+  }
+
+  function brushSnare(startT, volume) {
+    const dur = 0.12;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    let lp = 0;
+    for (let i = s0; i < s1; i++) {
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.002));
+      const decay = Math.exp(-pos / (sr * 0.04));
+      const noise = Math.random() * 2 - 1;
+      lp += 0.5 * (noise - lp);
+      data[i] += (noise - lp) * volume * attack * decay;
+    }
+  }
+
+  function vocalPad(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    const formants = [1, 2, 3, 4];
+    const gains = [1, 0.35, 0.18, 0.08];
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.5));
+      const release = Math.min(1, (len - pos) / (sr * 1.2));
+      let wave = 0;
+      for (let k = 0; k < formants.length; k++) {
+        const vib = 1 + 0.003 * Math.sin(2 * Math.PI * 4.5 * t + k);
+        wave += gains[k] * Math.sin(2 * Math.PI * freq * formants[k] * vib * t);
+      }
+      data[i] += wave * volume * attack * release * 0.4;
+    }
+  }
+
   function getGlobalFade(t) {
     if (t < 5) return 0;
-    else if (t < 7.5) return ((t - 5) / 2.5) * 0.08;
-    else if (t < 15) return 0.08 + ((t - 7.5) / 7.5) * 0.20;
-    else if (t < 22.5) return 0.28 - ((t - 15) / 7.5) * 0.065;
-    else if (t < 30) return 0.215 - ((t - 22.5) / 7.5) * 0.005;
-    else if (t < 37.5) return 0.21 + ((t - 30) / 7.5) * 0.07;
-    else if (t < 60) return 0.28 + ((t - 37.5) / 22.5) * 0.07;
-    else if (t < 67.5) return 0.35 - ((t - 60) / 7.5) * 0.07;
-    else if (t < 72) return 0.28 - ((t - 67.5) / 4.5) * 0.20;
-    else return Math.max(0, 0.08 * (TOTAL - t) / 3);
+    else if (t < 10) return ((t - 5) / 5) * 0.08;
+    else if (t < 20) return 0.08 + ((t - 10) / 10) * 0.20;
+    else if (t < 30) return 0.28 - ((t - 20) / 10) * 0.065;
+    else if (t < 42) return 0.215 - ((t - 30) / 12) * 0.005;
+    else if (t < 52) return 0.21 + ((t - 42) / 10) * 0.07;
+    else if (t < 82) return 0.28 + ((t - 52) / 30) * 0.07;
+    else if (t < 102) return 0.35 + ((t - 82) / 20) * 0.02;
+    else if (t < 108) return 0.37 - ((t - 102) / 6) * 0.12;
+    else return Math.max(0, 0.25 * (TOTAL - t) / 4);
   }
 
   function breeze(startT, dur, volume) {
@@ -295,7 +388,7 @@ function generateBGM(sr) {
         0.50 +
         0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
         0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
-      const globalFade = getGlobalFade(t);
+      const globalFade = getGlobalFade(startT + t);
       data[i] += lp * env * globalFade * volume * 15;
     }
   }
@@ -313,8 +406,7 @@ function generateBGM(sr) {
 
     for (let i = s0; i < s1; i++) {
       const t = (i - s0) / sr;
-      const pos = i - s0;
-      const globalFade = getGlobalFade(t);
+      const globalFade = getGlobalFade(startT + t);
 
       const innerWave1 = Math.sin(2 * Math.PI * t / 4.7);
       const innerWave2 = Math.sin(2 * Math.PI * t / 7.3 + 1.3);
@@ -423,33 +515,56 @@ function generateBGM(sr) {
     ],
   ];
 
-  const boxPairs = [
-    [F.C6, F.E6, 0.020],
-    [F.B5, F.D6, 0.020],
-    [F.E6, F.G6, 0.010],
-    [F.C6, F.E6, 0.020],
+  // B 段：把 phrase 2 整体升高五度，和弦进行换成 G-Am-C
+  const bPhrases = phrases[2].map(([sb, db, f, leg]) => [sb, db, f * 1.5, leg]);
+  const bChords = [
+    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
+    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
+    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
   ];
+
+  const boxPairs = {
+    0: [F.C6, F.E6, 0.020],
+    1: [F.B5, F.D6, 0.020],
+    2: [F.E6, F.G6, 0.010],
+    3: [F.C6, F.E6, 0.020],
+    4: [F.G5, F.B5, 0.018],
+    5: [F.A5, F.C6, 0.016],
+  };
 
   oceanWave(0, TOTAL, 0.20);
   breeze(0, TOTAL, 0.30);
 
-  // ==================== 前 5 秒钟琴 ====================
+  // ==================== Intro（0 - 12s）====================
   glockenspiel(0.6, F.C6, 0.018);
   glockenspiel(1.4, F.G5, 0.016);
   glockenspiel(2.3, F.E6, 0.017);
   glockenspiel(3.1, F.C6, 0.015);
   glockenspiel(3.9, F.B5, 0.016);
   glockenspiel(4.6, F.G6, 0.014);
+  glockenspiel(6.0, F.E6, 0.013);
+  glockenspiel(7.2, F.C6, 0.012);
+  glockenspiel(8.5, F.A5, 0.012);
+  glockenspiel(9.8, F.G5, 0.011);
 
-  function renderPhrase(startTime, phraseIndex, config) {
-    const melody = phrases[phraseIndex];
-    const chords = phraseChords[phraseIndex];
+  // Intro 末尾的钢琴下行，作为 A1 的引子
+  piano(7.5, F.C5, 1.5 * beat, 0.18, false);
+  piano(9.0, F.G4, 1.5 * beat, 0.17, false);
+  piano(10.5, F.E4, 2 * beat, 0.16, false);
+  piano(12.0 - 0.5, F.C4, 2 * beat, 0.15, false);
 
-    for (const [startBeat, durBeats, freq, legato] of melody) {
-      piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
+  // ==================== 渲染函数 ====================
+
+  function renderPhrase(startTime, phraseIndex, config, melodyArr, chordsArr) {
+    const melody = melodyArr || phrases[phraseIndex];
+    const chords = chordsArr || phraseChords[phraseIndex];
+
+    if (!config.silentMelody) {
+      for (const [startBeat, durBeats, freq, legato] of melody) {
+        piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.30, legato);
+      }
     }
 
-    // 第一把吉他：指弹
     if (config.guitarFinger) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -457,7 +572,13 @@ function generateBGM(sr) {
       }
     }
 
-    // 第二把吉他：扫弦
+    if (config.nylonFinger) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        nylonFingerpick(barStart, chords[b].notes, config.nylonVolume || 0.11);
+      }
+    }
+
     if (config.guitarStrum) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -482,6 +603,14 @@ function generateBGM(sr) {
       }
     }
 
+    if (config.pizz) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        pizzBass(barStart, chords[b].root, config.pizzVolume || 0.16);
+        pizzBass(barStart + 2 * beat, chords[b].root, (config.pizzVolume || 0.16) * 0.8);
+      }
+    }
+
     if (config.harp) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -491,12 +620,26 @@ function generateBGM(sr) {
       }
     }
 
-    if (config.musicBox) {
+    if (config.musicBox && phraseIndex !== undefined && boxPairs[phraseIndex]) {
       const [b1, b2, boxVol] = boxPairs[phraseIndex];
       musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
     }
 
-    // 沙锤：每小节八分音符，强弱交替（音量大幅提升）
+    if (config.flute) {
+      // 长笛在每句第 1、2 小节的长音处吹根音高八度
+      flute(startTime + 0 * barDuration, chords[0].root * 2, barDuration * 0.9, config.fluteVolume || 0.07);
+      flute(startTime + 1 * barDuration, chords[1].root * 2, barDuration * 0.9, (config.fluteVolume || 0.07) * 0.9);
+    }
+
+    if (config.vocalPad) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        for (const note of chords[b].notes) {
+          vocalPad(barStart, note, barDuration, (config.vocalPadVolume || 0.05));
+        }
+      }
+    }
+
     if (config.shaker) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
@@ -507,19 +650,29 @@ function generateBGM(sr) {
         }
       }
     }
+
+    if (config.drums) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        softKick(barStart + 0 * beat, 0.10);
+        softKick(barStart + 2 * beat, 0.09);
+        brushSnare(barStart + 1 * beat, 0.05);
+        brushSnare(barStart + 3 * beat, 0.05);
+      }
+    }
   }
 
-  // ==================== 第一遍（0 - 30s）====================
-  renderPhrase(FIRST_START + 0 * phraseDuration, 0, { musicBox: true });
-  renderPhrase(FIRST_START + 1 * phraseDuration, 1, { musicBox: true });
+  // ==================== A1（12 - 42s）====================
+  renderPhrase(FIRST_START + 0 * phraseDuration, 0, { musicBox: true, nylonFinger: true });
+  renderPhrase(FIRST_START + 1 * phraseDuration, 1, { musicBox: true, nylonFinger: true });
   renderPhrase(FIRST_START + 2 * phraseDuration, 2, {
-    musicBox: true, strings: true, cello: true,
+    musicBox: true, nylonFinger: true, strings: true, cello: true,
   });
   renderPhrase(FIRST_START + 3 * phraseDuration, 3, {
-    musicBox: true, strings: true, cello: true,
+    musicBox: true, nylonFinger: true, strings: true, cello: true,
   });
 
-  // ==================== 间奏（30 - 37.5s）====================
+  // ==================== Interlude（42 - 52s）====================
   {
     const startTime = INTERLUDE;
     const chords = phraseChords[0];
@@ -531,35 +684,72 @@ function generateBGM(sr) {
       harpHarmonic(barStart + 2 * beat, c.notes[2], 0.026);
       harpHarmonic(barStart + 3 * beat, c.notes[3], 0.024);
     }
+    // 后半段钢琴下行 + 钟琴点缀，引出 A2
+    markTree(INTERLUDE + 3 * barDuration + 2 * beat, 0.014);
+    piano(INTERLUDE + 3 * barDuration + 2 * beat, F.C5, 1 * beat, 0.20, false);
+    piano(INTERLUDE + 3 * barDuration + 3 * beat, F.G4, 1 * beat, 0.19, false);
+    piano(INTERLUDE + 3 * barDuration + 4 * beat, F.E4, 1 * beat, 0.18, false);
+    piano(INTERLUDE + 3 * barDuration + 5 * beat, F.G4, 1 * beat, 0.17, false);
+    piano(INTERLUDE + 3 * barDuration + 6 * beat, F.C4, 3 * beat, 0.16, 'veryLegato');
+    glockenspiel(INTERLUDE + 3 * barDuration + 4 * beat, F.E6, 0.012);
+    glockenspiel(INTERLUDE + 3 * barDuration + 5.5 * beat, F.C6, 0.011);
   }
 
-  // ==================== 第二遍（37.5 - 67.5s）====================
+  // ==================== A2（52 - 82s）====================
+  markTree(SECOND_START - 0.4, 0.016);
   renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true,
+    pizz: true, pizzVolume: 0.16,
     shaker: true,
   });
   renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true,
+    pizz: true, pizzVolume: 0.16,
     shaker: true,
   });
   renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
     guitarFinger: true, guitarVolume: 0.14,
     guitarStrum: true, strumVolume: 0.11,
     musicBox: true, strings: true, cello: true, harp: true,
+    pizz: true, pizzVolume: 0.17,
+    flute: true, fluteVolume: 0.06,
     shaker: true,
   });
   renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
     guitarFinger: true, guitarVolume: 0.13,
     guitarStrum: true, strumVolume: 0.10,
     musicBox: true, strings: true, cello: true, harp: true,
+    pizz: true, pizzVolume: 0.16,
+    flute: true, fluteVolume: 0.06,
     shaker: true,
   });
 
-  // ==================== 尾奏（67.5 - 75s）====================
+  // ==================== B（82 - 102s）====================
+  markTree(B_START - 0.4, 0.016);
+  renderPhrase(B_START + 0 * phraseDuration, 2, {
+    guitarFinger: true, guitarVolume: 0.13,
+    guitarStrum: true, strumVolume: 0.10,
+    strings: true, cello: true,
+    pizz: true, pizzVolume: 0.17,
+    flute: true, fluteVolume: 0.07,
+    vocalPad: true, vocalPadVolume: 0.045,
+    shaker: true, drums: true,
+  }, bPhrases, bChords);
+  renderPhrase(B_START + 1 * phraseDuration, 2, {
+    guitarFinger: true, guitarVolume: 0.13,
+    guitarStrum: true, strumVolume: 0.10,
+    strings: true, cello: true,
+    pizz: true, pizzVolume: 0.17,
+    flute: true, fluteVolume: 0.07,
+    vocalPad: true, vocalPadVolume: 0.045,
+    shaker: true, drums: true,
+  }, bPhrases, bChords);
+
+  // ==================== Outro（102 - 112s）====================
   {
     const startTime = OUTRO_START;
 
@@ -569,20 +759,25 @@ function generateBGM(sr) {
     piano(startTime + 3 * beat, F.G4, 1.2 * beat, 0.23, false);
     piano(startTime + 4 * beat, F.E4, 1.2 * beat, 0.22, false);
     piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.21, false);
-    piano(startTime + 6 * beat, F.C4, 8 * beat, 0.20, 'veryLegato');
+    piano(startTime + 6 * beat, F.C4, 16 * beat, 0.20, 'veryLegato');
 
     guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.10);
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.09);
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.08);
-  }
 
-  // ==================== 尾部钟琴 ====================
-  glockenspiel(68.2, F.C6, 0.014);
-  glockenspiel(69.0, F.G5, 0.013);
-  glockenspiel(69.8, F.E6, 0.012);
-  glockenspiel(70.6, F.B5, 0.012);
-  glockenspiel(71.4, F.G6, 0.011);
-  glockenspiel(72.2, F.C6, 0.010);
+    vocalPad(startTime + 6 * beat, F.C4, 16 * beat, 0.05);
+    vocalPad(startTime + 6 * beat, F.E4, 16 * beat, 0.04);
+    vocalPad(startTime + 6 * beat, F.G4, 16 * beat, 0.03);
+
+    glockenspiel(startTime + 0.7, F.C6, 0.014);
+    glockenspiel(startTime + 1.5, F.G5, 0.013);
+    glockenspiel(startTime + 2.3, F.E6, 0.012);
+    glockenspiel(startTime + 3.1, F.B5, 0.012);
+    glockenspiel(startTime + 3.9, F.G6, 0.011);
+    glockenspiel(startTime + 4.7, F.C6, 0.010);
+    glockenspiel(startTime + 6.0, F.E6, 0.009);
+    glockenspiel(startTime + 7.5, F.G5, 0.008);
+  }
 
   // ==================== 归一化 ====================
   let max = 0;
@@ -590,13 +785,14 @@ function generateBGM(sr) {
     const a = Math.abs(data[i]);
     if (a > max) max = a;
   }
-  if (max > 1.0) {
-    const scale = 1.0 / max;
+  const target = 0.92;
+  if (max > target) {
+    const scale = target / max;
     for (let i = 0; i < data.length; i++) data[i] *= scale;
   }
 
   const fin = Math.floor(sr * 0.05);
-  const fout = Math.floor(sr * 0.4);
+  const fout = Math.floor(sr * 0.6);
   for (let i = 0; i < fin; i++) data[i] *= i / fin;
   for (let i = 0; i < fout; i++) data[data.length - 1 - i] *= i / fout;
 
