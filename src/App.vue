@@ -42,8 +42,8 @@
       <!-- 餐厅列表 -->
       <template v-else>
         <RestaurantCard
-          v-for="item in filteredRestaurants"
-          :key="item.area + item.name"
+          v-for="(item, index) in filteredRestaurants"
+          :key="item.area + '|' + item.name + '|' + index"
           :restaurant="item"
           :eaten-records="eatenRecords[item.name] || []"
           @eat="openEatModal"
@@ -117,9 +117,7 @@ const { isPlaying: isBGMPlaying, toggle: toggleBGM, preload: preloadBGM, setupAu
 
 onMounted(() => {
   loadRestaurants();
-  // 后台预生成 BGM
   preloadBGM();
-  // 监听用户首次交互，自动开始播放
   setupAutoStart();
 });
 
