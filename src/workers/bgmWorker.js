@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v54：C/D 段旋律按用户指定，和弦 Am-C-Am / F-Am-C
+// v55：C/D段去低频嗡嗡，旋律突出，和弦重配
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -371,7 +371,6 @@ function generateBGM(sr) {
 
   // ==================== 旋律 ====================
 
-  // A1/A2：不动
   const phrases = [
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
@@ -429,7 +428,7 @@ function generateBGM(sr) {
 
   // ==================== C 第三乐句（用户指定旋律）====================
   // a4 a4 b4 c5 b4 a4 g4 c5 e5 b3 a3
-  // 第二句微调末尾（b4 a4），让衔接更平滑
+  // 保持旋律原样，不升八度
   const cPhrases = [
     [
       [0, 1, F.A4, false], [1, 1, F.A4, false], [2, 1, F.B4, false], [3, 1, F.C5, false],
@@ -442,16 +441,15 @@ function generateBGM(sr) {
       [8, 1, F.E5, false], [9, 1, F.B4, false], [10, 2, F.A4, true],
     ],
   ];
-  // C 段和弦：Am - C - Am
+  // C 段和弦：C - G - Am（低音移开，不和旋律末音 A3 同频）
   const cChords = [
-    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
     { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
     { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
   ];
 
   // ==================== D 第四乐句（用户指定旋律）====================
   // e4 f4 g4 c4 c4 d4 c4
-  // 第二句微调节奏，让结束更舒缓
   const dPhrases = [
     [
       [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 2, F.G4, false],
@@ -463,11 +461,11 @@ function generateBGM(sr) {
       [4, 2, F.C4, false], [6, 2, F.D4, false], [8, 4, F.C4, true],
     ],
   ];
-  // D 段和弦：F - Am - C
+  // D 段和弦：F - C - G（低音避开 C4 反复）
   const dChords = [
     { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
-    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
     { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
   ];
 
   const boxPairs = {
@@ -509,8 +507,9 @@ function generateBGM(sr) {
     const chords = chordsArr || phraseChords[phraseIndex];
 
     if (!config.silentMelody) {
+      const melodyVol = config.melodyVolume || 0.28;
       for (const [startBeat, durBeats, freq, legato] of melody) {
-        piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.28, legato);
+        piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, melodyVol, legato);
         if (config.pianoEcho) {
           piano(startTime + (startBeat + 0.5) * beat, freq * 2, durBeats * beat * 0.4, 0.045, false);
         }
@@ -535,7 +534,7 @@ function generateBGM(sr) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
         for (const note of chords[b].notes) {
-          stringEnsemble(barStart, note, barDuration * 0.95, config.stringsVolume || 0.012);
+          stringEnsemble(barStart, note, barDuration * 0.95, config.stringsVolume || 0.008);
         }
       }
     }
@@ -561,13 +560,22 @@ function generateBGM(sr) {
       for (let b = 0; b < 3; b++) {
         const barStart = startTime + b * barDuration;
         const c = chords[b];
-        harpHarmonic(barStart + 0.0 * beat, c.notes[0], 0.020);
-        harpHarmonic(barStart + 0.5 * beat, c.notes[1], 0.019);
-        harpHarmonic(barStart + 1.0 * beat, c.notes[2], 0.018);
-        harpHarmonic(barStart + 1.5 * beat, c.notes[3], 0.017);
-        harpHarmonic(barStart + 2.5 * beat, c.notes[2], 0.016);
-        harpHarmonic(barStart + 3.0 * beat, c.notes[1], 0.015);
-        harpHarmonic(barStart + 3.5 * beat, c.notes[0], 0.014);
+        // C/D 段只 4 个音，减少密度
+        const n = config.harpDensity === 'low' ? 4 : 7;
+        if (n === 4) {
+          harpHarmonic(barStart + 0.0 * beat, c.notes[0], 0.016);
+          harpHarmonic(barStart + 1.0 * beat, c.notes[1], 0.015);
+          harpHarmonic(barStart + 2.0 * beat, c.notes[2], 0.014);
+          harpHarmonic(barStart + 3.0 * beat, c.notes[3], 0.013);
+        } else {
+          harpHarmonic(barStart + 0.0 * beat, c.notes[0], 0.020);
+          harpHarmonic(barStart + 0.5 * beat, c.notes[1], 0.019);
+          harpHarmonic(barStart + 1.0 * beat, c.notes[2], 0.018);
+          harpHarmonic(barStart + 1.5 * beat, c.notes[3], 0.017);
+          harpHarmonic(barStart + 2.5 * beat, c.notes[2], 0.016);
+          harpHarmonic(barStart + 3.0 * beat, c.notes[1], 0.015);
+          harpHarmonic(barStart + 3.5 * beat, c.notes[0], 0.014);
+        }
       }
     }
 
@@ -637,68 +645,63 @@ function generateBGM(sr) {
   // ==================== Bridge（82 - 88s）====================
   {
     const t0 = BRIDGE_START;
-    harpHarmonic(t0 + 0.0, F.G4, 0.018);
-    harpHarmonic(t0 + 1.0, F.A4, 0.016);
-    harpHarmonic(t0 + 2.0, F.G4, 0.014);
-    musicBoxDuo(t0 + 3.0, F.E5, F.G5, 0.010);
-    piano(t0 + 4.0, F.G4, 1.5 * beat, 0.14, false);
-    piano(t0 + 5.2, F.A4, 1.5 * beat, 0.13, false);
-    harpHarmonic(t0 + 5.5, F.A4, 0.016);
+    harpHarmonic(t0 + 0.0, F.G4, 0.014);
+    harpHarmonic(t0 + 1.0, F.A4, 0.013);
+    harpHarmonic(t0 + 2.0, F.G4, 0.012);
+    musicBoxDuo(t0 + 3.0, F.E5, F.G5, 0.008);
+    piano(t0 + 4.0, F.G4, 1.5 * beat, 0.13, false);
+    piano(t0 + 5.2, F.A4, 1.5 * beat, 0.12, false);
   }
 
   // ==================== C 第三乐句（88 - 103s）====================
+  // 无 cello、无 pizz、无 pianoEcho，旋律音量 0.32 突出
   renderPhrase(C_START + 0 * phraseDuration, 4, {
-    guitarFinger: true, guitarVolume: 0.11,
-    musicBox: true, strings: true, stringsVolume: 0.010,
-    cello: true,
-    pizz: true, pizzVolume: 0.07,
-    harp: true,
-    pianoEcho: true,
+    melodyVolume: 0.32,
+    guitarFinger: true, guitarVolume: 0.09,
+    musicBox: true,
+    strings: true, stringsVolume: 0.008,
+    harp: true, harpDensity: 'low',
   }, cPhrases[0], cChords);
 
   renderPhrase(C_START + 1 * phraseDuration, 5, {
-    guitarFinger: true, guitarVolume: 0.11,
-    musicBox: true, strings: true, stringsVolume: 0.010,
-    cello: true,
-    pizz: true, pizzVolume: 0.07,
-    harp: true,
-    pianoEcho: true,
+    melodyVolume: 0.32,
+    guitarFinger: true, guitarVolume: 0.09,
+    musicBox: true,
+    strings: true, stringsVolume: 0.008,
+    harp: true, harpDensity: 'low',
   }, cPhrases[1], cChords);
 
   // C → D 过渡
   {
     const t0 = C_END;
-    harpHarmonic(t0 + 0.0, F.A4, 0.018);
-    harpHarmonic(t0 + 1.0, F.G4, 0.016);
-    harpHarmonic(t0 + 2.0, F.E4, 0.014);
-    musicBoxDuo(t0 + 3.0, F.C5, F.E5, 0.009);
+    harpHarmonic(t0 + 0.0, F.A4, 0.014);
+    harpHarmonic(t0 + 1.2, F.G4, 0.013);
+    musicBoxDuo(t0 + 2.5, F.C5, F.E5, 0.008);
   }
 
   // ==================== D 第四乐句（106 - 121s）====================
   renderPhrase(D_START + 0 * phraseDuration, 6, {
-    guitarFinger: true, guitarVolume: 0.11,
-    musicBox: true, strings: true, stringsVolume: 0.012,
-    cello: true,
-    pizz: true, pizzVolume: 0.06,
-    harp: true,
-    pianoEcho: true,
+    melodyVolume: 0.32,
+    guitarFinger: true, guitarVolume: 0.09,
+    musicBox: true,
+    strings: true, stringsVolume: 0.008,
+    harp: true, harpDensity: 'low',
   }, dPhrases[0], dChords);
 
   renderPhrase(D_START + 1 * phraseDuration, 6, {
-    guitarFinger: true, guitarVolume: 0.11,
-    musicBox: true, strings: true, stringsVolume: 0.012,
-    cello: true,
-    pizz: true, pizzVolume: 0.06,
-    harp: true,
-    pianoEcho: true,
+    melodyVolume: 0.32,
+    guitarFinger: true, guitarVolume: 0.09,
+    musicBox: true,
+    strings: true, stringsVolume: 0.008,
+    harp: true, harpDensity: 'low',
   }, dPhrases[1], dChords);
 
   // D → Outro 过渡
   {
     const t0 = D_END;
-    harpHarmonic(t0 + 0.0, F.G4, 0.018);
-    harpHarmonic(t0 + 1.2, F.E4, 0.016);
-    musicBoxDuo(t0 + 2.5, F.C5, F.E5, 0.009);
+    harpHarmonic(t0 + 0.0, F.G4, 0.014);
+    harpHarmonic(t0 + 1.2, F.E4, 0.013);
+    musicBoxDuo(t0 + 2.5, F.C5, F.E5, 0.008);
   }
 
   // ==================== Outro（124 - 155s）====================
@@ -724,8 +727,8 @@ function generateBGM(sr) {
     guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.07);
     guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.06);
 
-    harpHarmonic(startTime + 22 * beat, F.C5, 0.016);
-    harpHarmonic(startTime + 24 * beat, F.G4, 0.014);
+    harpHarmonic(startTime + 22 * beat, F.C5, 0.014);
+    harpHarmonic(startTime + 24 * beat, F.G4, 0.012);
 
     glockenspiel(startTime + 0.7, F.C6, 0.012);
     glockenspiel(startTime + 1.5, F.G5, 0.011);
