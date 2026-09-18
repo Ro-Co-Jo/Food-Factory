@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v53：A1/A2 不动，C/D 段改成古典风格（导音 B→C，F-G-C 终止）
+// v54：C/D 段旋律按用户指定，和弦 Am-C-Am / F-Am-C
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -370,8 +370,8 @@ function generateBGM(sr) {
   }
 
   // ==================== 旋律 ====================
-  // A1/A2 原始旋律，不动
 
+  // A1/A2：不动
   const phrases = [
     [
       [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
@@ -427,49 +427,46 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ==================== C 第三乐句：古典风格 ====================
-  // 旋律：G4-A4-B4-C5-B4-A4-G4-A4-G4（导音 B→C，拱形线条）
-  // 和弦：C - G - C（I - V - I）
+  // ==================== C 第三乐句（用户指定旋律）====================
+  // a4 a4 b4 c5 b4 a4 g4 c5 e5 b3 a3
+  // 第二句微调末尾（b4 a4），让衔接更平滑
   const cPhrases = [
     [
-      [0, 1, F.G4, false], [1, 1, F.A4, false], [2, 1, F.B4, false], [3, 1, F.C5, false],
-      [4, 1, F.B4, false], [5, 1, F.A4, false],
-      [6, 1, F.G4, false], [7, 1, F.A4, false],
-      [8, 3, F.G4, true],
+      [0, 1, F.A4, false], [1, 1, F.A4, false], [2, 1, F.B4, false], [3, 1, F.C5, false],
+      [4, 1, F.B4, false], [5, 1, F.A4, false], [6, 1, F.G4, false], [7, 1, F.C5, false],
+      [8, 1, F.E5, false], [9, 1, F.B3, false], [10, 2, F.A3, true],
     ],
     [
-      [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
-      [4, 1, F.G4, false], [5, 1, F.F4, false],
-      [6, 1, F.E4, false], [7, 1, F.D4, false],
-      [8, 3, F.E4, true],
+      [0, 1, F.A4, false], [1, 1, F.A4, false], [2, 1, F.B4, false], [3, 1, F.C5, false],
+      [4, 1, F.B4, false], [5, 1, F.A4, false], [6, 1, F.G4, false], [7, 1, F.C5, false],
+      [8, 1, F.E5, false], [9, 1, F.B4, false], [10, 2, F.A4, true],
     ],
   ];
+  // C 段和弦：Am - C - Am
   const cChords = [
+    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
     { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
-    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
-    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
   ];
 
-  // ==================== D 第四乐句：古典终止 ====================
-  // 旋律：C5-B4-A4-G4-F4-E4-D4-E4-C4（下行音阶，导音 B→A 解决）
-  // 和弦：F - G - C（IV - V - I 终止式）
+  // ==================== D 第四乐句（用户指定旋律）====================
+  // e4 f4 g4 c4 c4 d4 c4
+  // 第二句微调节奏，让结束更舒缓
   const dPhrases = [
     [
-      [0, 1, F.C5, false], [1, 1, F.B4, false], [2, 1, F.A4, false], [3, 1, F.G4, false],
-      [4, 1, F.F4, false], [5, 1, F.E4, false],
-      [6, 1, F.D4, false], [7, 1, F.E4, false],
-      [8, 3, F.C4, true],
-    ],
-    [
-      [0, 1, F.G4, false], [1, 1, F.F4, false], [2, 1, F.E4, false], [3, 1, F.D4, false],
-      [4, 1, F.E4, false], [5, 1, F.F4, false],
-      [6, 1, F.G4, false], [7, 1, F.B3, false],
+      [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 2, F.G4, false],
+      [4, 1, F.C4, false], [5, 1, F.C4, false], [6, 2, F.D4, false],
       [8, 4, F.C4, true],
     ],
+    [
+      [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 2, F.G4, false],
+      [4, 2, F.C4, false], [6, 2, F.D4, false], [8, 4, F.C4, true],
+    ],
   ];
+  // D 段和弦：F - Am - C
   const dChords = [
     { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
-    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
+    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
     { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
   ];
 
@@ -480,6 +477,7 @@ function generateBGM(sr) {
     3: [F.C6, F.E6, 0.020],
     4: [F.G5, F.B5, 0.016],
     5: [F.A5, F.C6, 0.014],
+    6: [F.G5, F.B5, 0.012],
   };
 
   oceanWave(0, TOTAL, 0.12);
@@ -640,12 +638,12 @@ function generateBGM(sr) {
   {
     const t0 = BRIDGE_START;
     harpHarmonic(t0 + 0.0, F.G4, 0.018);
-    harpHarmonic(t0 + 1.0, F.B3, 0.016);
-    harpHarmonic(t0 + 2.0, F.C4, 0.014);
+    harpHarmonic(t0 + 1.0, F.A4, 0.016);
+    harpHarmonic(t0 + 2.0, F.G4, 0.014);
     musicBoxDuo(t0 + 3.0, F.E5, F.G5, 0.010);
     piano(t0 + 4.0, F.G4, 1.5 * beat, 0.14, false);
-    piano(t0 + 5.2, F.B4, 1.5 * beat, 0.13, false);
-    harpHarmonic(t0 + 5.5, F.C5, 0.016);
+    piano(t0 + 5.2, F.A4, 1.5 * beat, 0.13, false);
+    harpHarmonic(t0 + 5.5, F.A4, 0.016);
   }
 
   // ==================== C 第三乐句（88 - 103s）====================
@@ -670,9 +668,9 @@ function generateBGM(sr) {
   // C → D 过渡
   {
     const t0 = C_END;
-    harpHarmonic(t0 + 0.0, F.G4, 0.018);
-    harpHarmonic(t0 + 1.0, F.E4, 0.016);
-    harpHarmonic(t0 + 2.0, F.C4, 0.014);
+    harpHarmonic(t0 + 0.0, F.A4, 0.018);
+    harpHarmonic(t0 + 1.0, F.G4, 0.016);
+    harpHarmonic(t0 + 2.0, F.E4, 0.014);
     musicBoxDuo(t0 + 3.0, F.C5, F.E5, 0.009);
   }
 
