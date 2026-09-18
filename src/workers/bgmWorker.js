@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v51：C/D 段回到 A 段音区，和弦延续 C-Am-F-G，配器恢复
+// v52：A1/A2 恢复原始旋律，只改 C/D 段
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -369,24 +369,38 @@ function generateBGM(sr) {
     }
   }
 
-  // ==================== 旋律（全部五声音阶：C D E G A）====================
+  // ==================== 旋律 ====================
+  // 【恢复】A1/A2 原始旋律（v47/v48 版本），不做五声音阶简化
 
   const phrases = [
     [
-      [0, 2, F.E4, false], [2, 2, F.G4, false], [4, 2, F.A4, false],
-      [6, 2, F.G4, false], [8, 4, F.E4, true],
+      [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
+      [4, 1, F.A4, false], [5, 1, F.G4, false],
+      [6.5, 0.5, F.D4, false], [7, 1, F.E4, false],
+      [8, 3, F.E4, true],
     ],
     [
-      [0, 2, F.G4, false], [2, 2, F.A4, false], [4, 2, F.C5, false],
-      [6, 2, F.A4, false], [8, 4, F.G4, true],
+      [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
+      [4, 1, F.A4, false], [5, 1, F.G4, false],
+      [6.5, 1, F.B4, false],
+      [7.5, 1, F.C5, false],
+      [8.5, 1, F.G4, false],
+      [9.5, 2.5, F.E4, true],
     ],
     [
-      [0, 2, F.A4, false], [2, 2, F.C5, false], [4, 2, F.D5, false],
-      [6, 2, F.C5, false], [8, 4, F.A4, true],
+      [0, 1, F.E4, false], [1, 1, F.F4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
+      [4, 1, F.C5, false], [5, 1, F.B4, false],
+      [6.5, 0.5, F.D5, false], [7, 1, F.G4, false],
+      [8, 0.5, F.F4, false], [8.5, 0.5, F.G4, false], [9, 0.5, F.F4, false], [9.5, 0.5, F.E4, false],
+      [10, 2, F.G4, false],
     ],
     [
-      [0, 2, F.G4, false], [2, 2, F.E4, false], [4, 2, F.D4, false],
-      [6, 2, F.E4, false], [8, 4, F.C4, true],
+      [0, 1, F.C4, false], [1, 1, F.E4, false], [2, 1, F.G4, false], [3, 1, F.F4, false],
+      [4, 1, F.E4, false], [5, 1, F.D4, false],
+      [6.5, 0.5, F.E4, false], [7, 0.5, F.C4, false],
+      [7.5, 0.5, F.B3, false],
+      [8, 0.5, F.C4, false],
+      [8.5, 2.5, F.C4, true],
     ],
   ];
 
@@ -413,38 +427,44 @@ function generateBGM(sr) {
     ],
   ];
 
-  // ==================== C 第三乐句：回到 A 段音区 ====================
-  // 旋律：G4-A4-C5-A4-G4 / E4-G4-A4-G4-E4（和 phrases[1] 同音区）
+  // ==================== C 第三乐句（新）====================
+  // 音区回到 E4~C5，和弦延续 C-Am-F-G
   const cPhrases = [
     [
-      [0, 2, F.G4, false], [2, 2, F.A4, false], [4, 2, F.C5, false],
-      [6, 2, F.A4, false], [8, 4, F.G4, true],
+      [0, 1, F.G4, false], [1, 1, F.A4, false], [2, 1, F.C5, false], [3, 1, F.A4, false],
+      [4, 1, F.G4, false], [5, 1, F.E4, false],
+      [6, 1, F.G4, false], [7, 1, F.A4, false],
+      [8, 3, F.G4, true],
     ],
     [
-      [0, 2, F.E4, false], [2, 2, F.G4, false], [4, 2, F.A4, false],
-      [6, 2, F.G4, false], [8, 4, F.E4, true],
+      [0, 1, F.E4, false], [1, 1, F.G4, false], [2, 1, F.A4, false], [3, 1, F.C5, false],
+      [4, 1, F.A4, false], [5, 1, F.G4, false],
+      [6, 1, F.E4, false], [7, 1, F.D4, false],
+      [8, 3, F.E4, true],
     ],
   ];
-  // C 段和弦：延续 A 段的 C - Am - F - G
   const cChords = [
     { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
     { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
     { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
   ];
 
-  // ==================== D 第四乐句：继续回落 ====================
-  // 旋律：C5-A4-G4-A4-C5 / G4-E4-D4-E4-C4（和 phrases[3] 同音区）
+  // ==================== D 第四乐句（新）====================
+  // 回落解决，和弦 F-G-C
   const dPhrases = [
     [
-      [0, 2, F.C5, false], [2, 2, F.A4, false], [4, 2, F.G4, false],
-      [6, 2, F.A4, false], [8, 4, F.C5, true],
+      [0, 1, F.C5, false], [1, 1, F.A4, false], [2, 1, F.G4, false], [3, 1, F.A4, false],
+      [4, 1, F.C5, false], [5, 1, F.A4, false],
+      [6, 1, F.G4, false], [7, 1, F.E4, false],
+      [8, 4, F.C4, true],
     ],
     [
-      [0, 2, F.G4, false], [2, 2, F.E4, false], [4, 2, F.D4, false],
-      [6, 2, F.E4, false], [8, 4, F.C4, true],
+      [0, 1, F.G4, false], [1, 1, F.E4, false], [2, 1, F.D4, false], [3, 1, F.E4, false],
+      [4, 1, F.G4, false], [5, 1, F.E4, false],
+      [6, 1, F.D4, false], [7, 1, F.C4, false],
+      [8, 4, F.C4, true],
     ],
   ];
-  // D 段和弦：F - G - C（延续 A 段）
   const dChords = [
     { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
     { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
@@ -490,7 +510,7 @@ function generateBGM(sr) {
 
     if (!config.silentMelody) {
       for (const [startBeat, durBeats, freq, legato] of melody) {
-        piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
+        piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.28, legato);
         if (config.pianoEcho) {
           piano(startTime + (startBeat + 0.5) * beat, freq * 2, durBeats * beat * 0.4, 0.045, false);
         }
@@ -615,7 +635,6 @@ function generateBGM(sr) {
   });
 
   // ==================== Bridge（82 - 88s）====================
-  // 衔接：竖琴停在 G4，C 段从 G4 开始
   {
     const t0 = BRIDGE_START;
     harpHarmonic(t0 + 0.0, F.G4, 0.018);
@@ -628,7 +647,6 @@ function generateBGM(sr) {
   }
 
   // ==================== C 第三乐句（88 - 103s）====================
-  // 回到 A 段音区，配器恢复 A2 水平，开 pianoEcho
   renderPhrase(C_START + 0 * phraseDuration, 4, {
     guitarFinger: true, guitarVolume: 0.11,
     musicBox: true, strings: true, stringsVolume: 0.010,
