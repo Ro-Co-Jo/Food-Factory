@@ -1,5 +1,5 @@
 // src/workers/bgmWorker.js
-// v50：修复 C/D 段和弦冲突，C/D 关 pianoEcho，musicBox 音量降
+// v51：C/D 段回到 A 段音区，和弦延续 C-Am-F-G，配器恢复
 
 self.onmessage = function (e) {
   const sr = e.data.sampleRate;
@@ -371,23 +371,19 @@ function generateBGM(sr) {
 
   // ==================== 旋律（全部五声音阶：C D E G A）====================
 
-  // A1 第一乐句：E→G→A→G→E，温暖上行后回落
   const phrases = [
     [
       [0, 2, F.E4, false], [2, 2, F.G4, false], [4, 2, F.A4, false],
       [6, 2, F.G4, false], [8, 4, F.E4, true],
     ],
-    // A1 第二乐句：G→A→C5→A→G
     [
       [0, 2, F.G4, false], [2, 2, F.A4, false], [4, 2, F.C5, false],
       [6, 2, F.A4, false], [8, 4, F.G4, true],
     ],
-    // A1 第三乐句：A→C5→D5→C5→A
     [
       [0, 2, F.A4, false], [2, 2, F.C5, false], [4, 2, F.D5, false],
       [6, 2, F.C5, false], [8, 4, F.A4, true],
     ],
-    // A1 第四乐句：G→E→D→E→C，回落解决
     [
       [0, 2, F.G4, false], [2, 2, F.E4, false], [4, 2, F.D4, false],
       [6, 2, F.E4, false], [8, 4, F.C4, true],
@@ -417,39 +413,41 @@ function generateBGM(sr) {
     ],
   ];
 
-  // C 第三乐句
+  // ==================== C 第三乐句：回到 A 段音区 ====================
+  // 旋律：G4-A4-C5-A4-G4 / E4-G4-A4-G4-E4（和 phrases[1] 同音区）
   const cPhrases = [
     [
-      [0, 2, F.E5, false], [2, 2, F.G5, false], [4, 2, F.A5, false],
-      [6, 2, F.G5, false], [8, 4, F.E5, true],
-    ],
-    [
-      [0, 2, F.A5, false], [2, 2, F.G5, false], [4, 2, F.E5, false],
-      [6, 2, F.D5, false], [8, 4, F.E5, true],
-    ],
-  ];
-  // 【修复 1】C 段和弦：Am - G - C
-  const cChords = [
-    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
-    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
-    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
-  ];
-
-  // D 第四乐句
-  const dPhrases = [
-    [
-      [0, 2, F.G5, false], [2, 2, F.E5, false], [4, 2, F.D5, false],
-      [6, 2, F.C5, false], [8, 4, F.A4, true],
-    ],
-    [
-      [0, 2, F.E5, false], [2, 2, F.D5, false], [4, 2, F.C5, false],
+      [0, 2, F.G4, false], [2, 2, F.A4, false], [4, 2, F.C5, false],
       [6, 2, F.A4, false], [8, 4, F.G4, true],
     ],
+    [
+      [0, 2, F.E4, false], [2, 2, F.G4, false], [4, 2, F.A4, false],
+      [6, 2, F.G4, false], [8, 4, F.E4, true],
+    ],
   ];
-  // 【修复 2】D 段和弦：Am - Em - C
-  const dChords = [
+  // C 段和弦：延续 A 段的 C - Am - F - G
+  const cChords = [
+    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
     { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
-    { root: F.E3,   notes: [F.E3, F.G3, F.B3, F.E4] },
+    { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
+  ];
+
+  // ==================== D 第四乐句：继续回落 ====================
+  // 旋律：C5-A4-G4-A4-C5 / G4-E4-D4-E4-C4（和 phrases[3] 同音区）
+  const dPhrases = [
+    [
+      [0, 2, F.C5, false], [2, 2, F.A4, false], [4, 2, F.G4, false],
+      [6, 2, F.A4, false], [8, 4, F.C5, true],
+    ],
+    [
+      [0, 2, F.G4, false], [2, 2, F.E4, false], [4, 2, F.D4, false],
+      [6, 2, F.E4, false], [8, 4, F.C4, true],
+    ],
+  ];
+  // D 段和弦：F - G - C（延续 A 段）
+  const dChords = [
+    { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
+    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
     { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
   ];
 
@@ -617,62 +615,64 @@ function generateBGM(sr) {
   });
 
   // ==================== Bridge（82 - 88s）====================
+  // 衔接：竖琴停在 G4，C 段从 G4 开始
   {
     const t0 = BRIDGE_START;
     harpHarmonic(t0 + 0.0, F.G4, 0.018);
-    harpHarmonic(t0 + 0.8, F.E4, 0.016);
-    harpHarmonic(t0 + 1.6, F.C4, 0.014);
-    musicBoxDuo(t0 + 2.6, F.E5, F.G5, 0.007);
-    piano(t0 + 3.6, F.C5, 1.5 * beat, 0.14, false);
-    piano(t0 + 4.8, F.E5, 1.5 * beat, 0.13, false);
-    harpHarmonic(t0 + 5.0, F.C5, 0.016);
+    harpHarmonic(t0 + 1.0, F.A4, 0.016);
+    harpHarmonic(t0 + 2.0, F.G4, 0.014);
+    musicBoxDuo(t0 + 3.0, F.E5, F.G5, 0.010);
+    piano(t0 + 4.0, F.G4, 1.5 * beat, 0.14, false);
+    piano(t0 + 5.2, F.A4, 1.5 * beat, 0.13, false);
+    harpHarmonic(t0 + 5.5, F.G4, 0.016);
   }
 
   // ==================== C 第三乐句（88 - 103s）====================
-  // 【修复 3】C 段关 pianoEcho
+  // 回到 A 段音区，配器恢复 A2 水平，开 pianoEcho
   renderPhrase(C_START + 0 * phraseDuration, 4, {
-    strings: true, stringsVolume: 0.010,
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, stringsVolume: 0.010,
     cello: true,
+    pizz: true, pizzVolume: 0.07,
     harp: true,
-    musicBox: true,
-    guitarFinger: true, guitarVolume: 0.08,
+    pianoEcho: true,
   }, cPhrases[0], cChords);
 
   renderPhrase(C_START + 1 * phraseDuration, 5, {
-    strings: true, stringsVolume: 0.010,
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, stringsVolume: 0.010,
     cello: true,
+    pizz: true, pizzVolume: 0.07,
     harp: true,
-    musicBox: true,
-    guitarFinger: true, guitarVolume: 0.08,
+    pianoEcho: true,
   }, cPhrases[1], cChords);
 
   // C → D 过渡
   {
     const t0 = C_END;
-    harpHarmonic(t0 + 0.0, F.E4, 0.020);
-    harpHarmonic(t0 + 1.0, F.G4, 0.018);
-    harpHarmonic(t0 + 2.0, F.A4, 0.016);
-    musicBoxDuo(t0 + 3.0, F.E5, F.G5, 0.007);
+    harpHarmonic(t0 + 0.0, F.G4, 0.018);
+    harpHarmonic(t0 + 1.0, F.E4, 0.016);
+    harpHarmonic(t0 + 2.0, F.C4, 0.014);
+    musicBoxDuo(t0 + 3.0, F.C5, F.E5, 0.009);
   }
 
   // ==================== D 第四乐句（106 - 121s）====================
-  // 【修复 4】D 段关 pianoEcho
   renderPhrase(D_START + 0 * phraseDuration, 6, {
-    strings: true, stringsVolume: 0.012,
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, stringsVolume: 0.012,
     cello: true,
-    harp: true,
-    musicBox: true,
     pizz: true, pizzVolume: 0.06,
-    guitarFinger: true, guitarVolume: 0.08,
+    harp: true,
+    pianoEcho: true,
   }, dPhrases[0], dChords);
 
   renderPhrase(D_START + 1 * phraseDuration, 6, {
-    strings: true, stringsVolume: 0.012,
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, stringsVolume: 0.012,
     cello: true,
-    harp: true,
-    musicBox: true,
     pizz: true, pizzVolume: 0.06,
-    guitarFinger: true, guitarVolume: 0.08,
+    harp: true,
+    pianoEcho: true,
   }, dPhrases[1], dChords);
 
   // D → Outro 过渡
@@ -680,7 +680,7 @@ function generateBGM(sr) {
     const t0 = D_END;
     harpHarmonic(t0 + 0.0, F.G4, 0.018);
     harpHarmonic(t0 + 1.2, F.E4, 0.016);
-    musicBoxDuo(t0 + 2.5, F.C5, F.E5, 0.007);
+    musicBoxDuo(t0 + 2.5, F.C5, F.E5, 0.009);
   }
 
   // ==================== Outro（124 - 155s）====================

@@ -1,0 +1,2752 @@
+﻿
+
+========== FILE: C:\Users\hz\Desktop\food-factory\.vscode\extensions.json ==========
+
+{
+  "recommendations": ["Vue.volar"]
+}
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\AppBackground.vue ==========
+
+<!--
+  AppBackground.vue
+  鑳屾櫙鐗规晥锛氬灞傛诞鍔ㄥ厓绱狅紙澶у彿鏌斿厜銆侀钀借姳鐡ｃ€侀棯鐑佹槦鏄熴€佹紓娴埅鍗帮級
+-->
+<template>
+  <div class="bg-elements">
+    <!-- 澶у彿鏌斿厜鐞?-->
+    <div class="glow-orb glow-1"></div>
+    <div class="glow-orb glow-2"></div>
+    <div class="glow-orb glow-3"></div>
+
+    <!-- 婕傛诞鐖嵃 -->
+    <span
+      v-for="(item, index) in pawItems"
+      :key="'paw-' + index"
+      class="bg-paw"
+      :style="item.style"
+    >{{ item.char }}</span>
+
+    <!-- 椋樿惤鑺辩摚 -->
+    <span
+      v-for="(item, index) in petalItems"
+      :key="'petal-' + index"
+      class="bg-petal"
+      :style="item.style"
+    ></span>
+
+    <!-- 闂儊鏄熸槦 -->
+    <span
+      v-for="(item, index) in starItems"
+      :key="'star-' + index"
+      class="bg-star"
+      :style="item.style"
+    >猸?/span>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+
+function randomBetween(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const pawEmojis = ['馃惥', '馃惥', '馃惥', '馃尭', '鉁?, '馃崁'];
+const pawItems = ref(
+  Array.from({ length: 12 }, () => ({
+    char: pawEmojis[Math.floor(Math.random() * pawEmojis.length)],
+    style: {
+      left: `${randomBetween(0, 100)}vw`,
+      animationDuration: `${randomBetween(15, 35)}s`,
+      animationDelay: `${randomBetween(0, 10)}s`,
+      opacity: 0.12 + Math.random() * 0.1
+    }
+  }))
+);
+
+const petalColors = ['#f8c8d2', '#fde2c4', '#f5c9c9', '#f9e0e0', '#ffd9a0', '#e8d0f0'];
+const petalItems = ref(
+  Array.from({ length: 18 }, () => {
+    const size = randomBetween(10, 22);
+    return {
+      style: {
+        left: `${randomBetween(0, 100)}vw`,
+        width: `${size}px`,
+        height: `${size}px`,
+        background: petalColors[Math.floor(Math.random() * petalColors.length)],
+        animationDuration: `${randomBetween(10, 22)}s`,
+        animationDelay: `${randomBetween(0, 12)}s`,
+        opacity: 0.25 + Math.random() * 0.2
+      }
+    };
+  })
+);
+
+const starItems = ref(
+  Array.from({ length: 10 }, () => ({
+    style: {
+      left: `${randomBetween(0, 100)}vw`,
+      top: `${randomBetween(0, 100)}vh`,
+      fontSize: `${randomBetween(14, 28)}px`,
+      animationDuration: `${randomBetween(2, 5)}s`,
+      animationDelay: `${randomBetween(0, 3)}s`,
+      opacity: 0.2 + Math.random() * 0.3
+    }
+  }))
+);
+</script>
+
+<style scoped>
+.bg-elements {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 鏌斿厜鐞?*/
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.3;
+  animation: orbFloat 12s ease-in-out infinite;
+}
+.glow-1 {
+  width: 300px;
+  height: 300px;
+  background: #fbbf24;
+  top: -80px;
+  left: -60px;
+}
+.glow-2 {
+  width: 350px;
+  height: 350px;
+  background: #f472b6;
+  bottom: -100px;
+  right: -80px;
+  animation-delay: 4s;
+}
+.glow-3 {
+  width: 250px;
+  height: 250px;
+  background: #60a5fa;
+  top: 40%;
+  left: 60%;
+  animation-delay: 8s;
+}
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(30px, -20px); }
+  66% { transform: translate(-20px, 30px); }
+}
+
+/* 鐖嵃 */
+.bg-paw {
+  position: absolute;
+  bottom: -50px;
+  font-size: 28px;
+  animation: floatUp linear infinite;
+}
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-110vh) rotate(360deg); }
+}
+
+/* 鑺辩摚 */
+.bg-petal {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50% 50% 50% 0;
+  animation: petalFall linear infinite;
+}
+@keyframes petalFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-110vh) rotate(540deg); opacity: 0; }
+}
+
+/* 鏄熸槦 */
+.bg-star {
+  position: absolute;
+  animation: twinkle ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.1; transform: scale(0.8); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+}
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\EatModal.vue ==========
+
+<!--
+  EatModal.vue
+  璇勪环寮圭獥锛氳褰曞悆杩囩殑鏃ユ湡銆佽瘎鍒嗭紙1-10鍒嗭紝鏀寔鍗婃槦锛夈€佸娉紝
+  骞跺睍绀鸿椁愬巺鐨勫巻鍙茶褰曪紝鏀寔鍒犻櫎鍗曟潯璁板綍銆?
+-->
+<template>
+  <Teleport to="body">
+    <div v-if="visible" class="modal-overlay" @click.self="close">
+      <div class="modal">
+        <h3>馃嵔锔?{{ restaurant.name }}</h3>
+
+        <!-- 鏃ユ湡閫夋嫨 -->
+        <label>鍚冭繃鐨勬棩鏈?/label>
+        <div class="date-selects">
+          <select v-model="selectedYear">
+            <option v-for="y in years" :key="y" :value="y">{{ y }}骞?/option>
+          </select>
+          <select v-model="selectedMonth" @change="updateDays">
+            <option v-for="m in 12" :key="m" :value="m">{{ m }}鏈?/option>
+          </select>
+          <select v-model="selectedDay">
+            <option v-for="d in daysInMonth" :key="d" :value="d">{{ d }}鏃?/option>
+          </select>
+        </div>
+
+        <!-- 鏄熺骇璇勫垎 -->
+        <label>浣犵殑璇勫垎锛堢偣鍑绘槦鏄燂紝鏀寔鍗婃槦锛?/label>
+        <div class="star-rating">
+          <span
+            v-for="star in 5"
+            :key="star"
+            class="star"
+            :class="starClass(star)"
+            @click="setScore(star, $event)"
+          >鈽?/span>
+        </div>
+        <div class="score-display">{{ score }}鍒?/div>
+
+        <!-- 澶囨敞 -->
+        <label>澶囨敞锛堝彲閫夛級</label>
+        <input type="text" v-model="note" placeholder="涓嶅～寰楀埌鑰佹澘鐨勫皬濂栧姳" />
+
+        <!-- 鎸夐挳 -->
+        <div class="modal-btns">
+          <button class="cancel" @click="close">鍙栨秷</button>
+          <button class="confirm" @click="save">淇濆瓨</button>
+        </div>
+
+        <!-- 鍘嗗彶璁板綍 -->
+        <div v-if="records.length" class="history-section">
+          <h4>馃摉 鍘嗗彶璁板綍锛坽{ records.length }}娆★級</h4>
+          <div v-for="(r, index) in records" :key="index" class="history-item">
+            <div>
+              <span class="h-date">{{ r.date }}</span>
+              <span class="h-score">{{ formatStars(r.score) }}</span>
+              <span class="h-note">{{ r.note || '涓嶅～鍐欏緱鍒颁簡闆跺厓鍑忓厤鍒? }}</span>
+            </div>
+            <button class="delete-btn" @click="removeRecord(index)">鉁?/button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue';
+import { useEatenRecords } from '@/composables/useEatenRecords';
+
+const props = defineProps({
+  restaurant: { type: Object, required: true },
+  visible: { type: Boolean, default: false }
+});
+const emit = defineEmits(['close', 'saved']);
+
+const { records: allRecords, addRecord, deleteRecord } = useEatenRecords();
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 16 }, (_, i) => currentYear - 5 + i);
+
+const selectedYear = ref(currentYear);
+const selectedMonth = ref(new Date().getMonth() + 1);
+const selectedDay = ref(new Date().getDate());
+const score = ref(0);
+const note = ref('');
+
+const records = computed(() => allRecords.value[props.restaurant.name] || []);
+
+const daysInMonth = computed(() => {
+  return new Date(selectedYear.value, selectedMonth.value, 0).getDate();
+});
+
+function updateDays() {
+  if (selectedDay.value > daysInMonth.value) {
+    selectedDay.value = daysInMonth.value;
+  }
+}
+
+function starClass(starIndex) {
+  const starValue = starIndex * 2; // 姣忛鏄熶唬琛?鍒?
+  if (score.value >= starValue) return 'full';
+  if (score.value === starValue - 1) return 'half';
+  return 'empty';
+}
+
+/**
+ * 鐐瑰嚮鏄熸槦璁剧疆璇勫垎
+ * @param {number} starIndex 鏄熸槦绱㈠紩锛?-5锛?
+ * @param {MouseEvent} event 鐐瑰嚮浜嬩欢锛岀敤浜庡垽鏂乏/鍙冲崐鍖?
+ */
+function setScore(starIndex, event) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const isHalf = x < rect.width / 2;
+  score.value = starIndex * 2 - (isHalf ? 1 : 0);
+}
+
+function formatStars(scoreValue) {
+  if (!scoreValue && scoreValue !== 0) return '';
+  const starCount = Math.round(scoreValue / 2 * 2) / 2;
+  let s = '';
+  for (let i = 1; i <= 5; i++) {
+    if (i <= starCount) s += '鈽?;
+    else if (i - 0.5 === starCount) s += '獐?;
+    else s += '鈽?;
+  }
+  return `${s} (${scoreValue}/10)`;
+}
+
+function save() {
+  const dateStr = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-${String(selectedDay.value).padStart(2, '0')}`;
+  addRecord(props.restaurant.name, {
+    date: dateStr,
+    score: score.value,
+    note: note.value.trim()
+  });
+  note.value = '';
+  score.value = 0;
+  emit('saved');
+  emit('close');
+}
+
+function removeRecord(index) {
+  deleteRecord(props.restaurant.name, index);
+}
+
+function close() {
+  emit('close');
+}
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: #fff;
+  border-radius: 18px;
+  padding: 20px;
+  width: 90%;
+  max-width: 430px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+h3 { font-size: 17px; margin-bottom: 12px; text-align: center; }
+label { font-size: 13px; color: #666; display: block; margin: 10px 0 4px; }
+.date-selects { display: flex; gap: 8px; }
+.date-selects select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.star-rating { display: flex; gap: 2px; margin-top: 4px; font-size: 28px; cursor: pointer; user-select: none; }
+.star { transition: transform 0.15s; }
+.star:hover { transform: scale(1.15); }
+.star.full { color: #f0b840; }
+.star.half {
+  background: linear-gradient(to right, #f0b840 50%, #ddd 50%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.star.empty { color: #ddd; }
+.score-display { font-size: 13px; color: #666; margin-top: 4px; text-align: right; }
+input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+.modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+.modal-btns button { flex: 1; padding: 11px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.confirm { background: linear-gradient(135deg, #e0a458, #c96f6f); color: white; }
+.cancel { background: #f0f0f0; color: #666; }
+.history-section { margin-top: 14px; border-top: 1px solid #eee; padding-top: 12px; }
+.history-section h4 { font-size: 13px; color: #666; margin-bottom: 8px; }
+.history-item {
+  padding: 8px 10px;
+  background: #faf8f4;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.h-date { font-weight: 600; color: #333; }
+.h-score { color: #f0b840; }
+.h-note { color: #888; font-style: italic; }
+.delete-btn { background: none; border: none; color: #ccc; font-size: 16px; cursor: pointer; }
+.delete-btn:hover { color: #d9534f; }
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\FilterBar.vue ==========
+
+<!--
+  FilterBar.vue
+  绛涢€夋爮缁勪欢锛氬湴鍖恒€佸皬鍖哄煙銆佸垎绫汇€佹帓搴忋€佹悳绱?
+  閫氳繃 v-model 涓庣埗缁勪欢鍙屽悜缁戝畾
+-->
+<template>
+  <div class="filters">
+    <!-- 鍦板尯 -->
+    <select :value="area" @change="$emit('update:area', $event.target.value)">
+      <option value="鍏ㄩ儴">鍏ㄩ儴鍦板尯</option>
+      <option value="鐜夋硥鏍″尯鍛ㄨ竟">鐜夋硥鏍″尯鍛ㄨ竟</option>
+      <option value="绱噾娓牎鍖哄懆杈?>绱噾娓牎鍖哄懆杈?/option>
+      <option value="鍏ㄦ澀宸炶寖鍥村強澶栧崠">鍏ㄦ澀宸炶寖鍥村強澶栧崠</option>
+      <option value="椋熷爞">椋熷爞</option>
+    </select>
+
+    <!-- 灏忓尯鍩燂紙鏍规嵁鍦板尯鍔ㄦ€佹樉绀猴級 -->
+    <select :value="subarea" @change="$emit('update:subarea', $event.target.value)">
+      <option value="鍏ㄩ儴">鍏ㄩ儴灏忓尯鍩?/option>
+      <option v-for="s in subareaOptions" :key="s" :value="s">{{ s }}</option>
+    </select>
+
+    <!-- 鍒嗙被 -->
+    <select :value="cat" @change="$emit('update:cat', $event.target.value)">
+      <option value="鍏ㄩ儴">鍏ㄩ儴鍒嗙被</option>
+      <option value="涓">馃ア 涓</option>
+      <option value="鐏攨/姹ら攨">馃嵅 鐏攨/姹ら攨</option>
+      <option value="鐑х儰/鐑よ倝">馃崠 鐑х儰/鐑よ倝</option>
+      <option value="鏃ユ枡">馃崳 鏃ユ枡</option>
+      <option value="瑗块">馃崫 瑗块</option>
+      <option value="闊╅">馃珪 闊╅</option>
+      <option value="闈㈤/灏忓悆/蹇">馃崪 闈㈤/灏忓悆/蹇</option>
+      <option value="鐢滃搧/鐑樼剻/鍜栧暋">馃嵃 鐢滃搧/鐑樼剻/鍜栧暋</option>
+      <option value="寮傚浗鏂欑悊">馃尞 寮傚浗鏂欑悊</option>
+      <option value="椋熷爞/鍏朵粬">馃彨 椋熷爞/鍏朵粬</option>
+      <option value="鍏朵粬">馃嵔锔?鍏朵粬</option>
+    </select>
+
+    <!-- 鎺掑簭 -->
+    <select :value="sort" @change="$emit('update:sort', $event.target.value)">
+      <option value="rating">猸?鎺ㄨ崘鎸囨暟</option>
+      <option value="priceAsc">馃挵 浜哄潎浣庘啋楂?/option>
+      <option value="priceDesc">馃挵 浜哄潎楂樷啋浣?/option>
+    </select>
+
+    <!-- 鎼滅储 -->
+    <input
+      type="text"
+      :value="search"
+      @input="$emit('update:search', $event.target.value)"
+      placeholder="馃攳 鎼滅储搴楀悕..."
+    />
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { subareaMap } from '@/utils/subarea';
+
+const props = defineProps({
+  area: { type: String, default: '鍏ㄩ儴' },
+  subarea: { type: String, default: '鍏ㄩ儴' },
+  cat: { type: String, default: '鍏ㄩ儴' },
+  sort: { type: String, default: 'rating' },
+  search: { type: String, default: '' }
+});
+
+defineEmits(['update:area', 'update:subarea', 'update:cat', 'update:sort', 'update:search']);
+
+/** 鏍规嵁褰撳墠鍦板尯鑾峰彇鍙€夊皬鍖哄煙 */
+const subareaOptions = computed(() => subareaMap[props.area] || []);
+</script>
+
+<style scoped>
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+select, input {
+  flex: 1 1 45%;
+  padding: 10px 12px;
+  border: 1px solid #e5e0d8;
+  border-radius: 12px;
+  font-size: 13px;
+  background: #fff;
+  color: #333;
+}
+input {
+  flex: 1 1 100%;
+}
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\FortuneBox.vue ==========
+
+<!--
+  FortuneBox.vue
+  浠婃棩鍚冭揣绛撅細鐐瑰嚮鎶界鏄剧ず闅忔満绛炬枃锛屽甫鍐峰嵈涓庣壒鏁?
+-->
+<template>
+  <div class="fortune-box" :class="{ disabled: cooldown > 0 }" @click="drawFortune">
+    <div class="title">馃帇 浠婃棩鍚冭揣绛?/div>
+    <div class="msg">{{ message }}</div>
+    <div class="cooldown">{{ cooldown > 0 ? `鍐峰嵈涓?${cooldown}s` : '' }}</div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+
+const fortunes = [
+  "浠婂ぉ閫傚悎鍚冭荆锛屽啿锛侌煂讹笍", "鐢滅偣鏄熶汉闄勪綋锛屽幓鍚冭泲绯曫煃?, "姹夊牎钖潯瀹夋帓涓婐煃?,
+  "鐗涜倝鐏攨鏈€鏃轰綘馃嵅", "浠婂ぉ鍒寫锛屽悆闈㈠氨琛岎煃?, "椋熷爞鍙兘鎵嶆槸鏈€缁堝綊瀹筐煆?,
+  "灏忕嫾寤鸿浣犺瘯璇曟病鍚冭繃鐨勫簵鉁?, "蹇冩儏濂斤紝鍚冧粈涔堥兘棣欚煒?, "浠婂ぉ閫傚悎鏉ヤ竴纰楃儹鑵捐吘鐨勬堡馃嵅",
+  "鐑や覆鍟ら厭鏄粷閰嶐煃?, "浠婂ぉ閫傚悎鍚冮吀閰哥敎鐢滅殑鑿滒煃?, "鎶惃鏃ワ紝鑺濆＋灏辨槸鍔涢噺馃",
+  "鏃ユ枡鎺у彲浠ュ嚭鍔ㄥ暒馃崳", "浠婂ぉ閫傚悎鍚冩补鐐搁鍝侊紝寮€蹇冩渶閲嶈馃崵", "杞婚椁愪篃涓嶉敊锛屽仴搴峰張缇庡懗馃",
+  "楹昏荆鐑畨鎺掍笂锛屼竾鐗╃殕鍙儷馃尪锔?, "浠婂ぉ閫傚悎鍚冨挅鍠憋紝娴撻儊鍙堜笅楗煃?, "闈㈡潯鏄熶汉鍑哄彂鍚ю煃?,
+  "浠婂ぉ閫傚悎鍚冮ズ瀛愶紝鏈夊鐨勫懗閬擆煡?, "鐐掗キ铔嬬倰楗紝绠€鍗曞張婊¤冻馃崥", "鐑よ倝蹇呴』鏈夛紝鑲夐鍔ㄧ墿鍐插憖馃ォ",
+  "鍚冮奔鍙樿仾鏄庯紝娓呰捀绾㈢儳閮借馃悷", "浠婂ぉ閫傚悎鍚冮浮锛岀櫧鍒囬浮榛勭剸楦￠兘琛岎煇?, "姹夊牎钖潯鍙箰锛屽揩涔愪笁浠跺馃崝",
+  "浠婂ぉ閫傚悎鍚冩棭椁愬簵鐨勫皬绗煎寘馃", "鍚冧釜鐓庨ゼ鏋滃瓙锛屽厓姘旀弧婊○煂?, "浠婂ぉ閫傚悎鍚冨噳鐨噳闈紝娓呯埥馃",
+  "鏉ヤ竴纰楄灪铔崇矇锛岃嚟骞跺揩涔愮潃馃崪", "浠婂ぉ閫傚悎鍚冩捣椴滃ぇ椁愷煢?, "鐢滃搧涓嬪崍鑼讹紝鍋氫釜绮捐嚧鍚冭揣馃嵃",
+  "浠婂ぉ閫傚悎鍚冪礌椋熸竻娓呰偁馃ガ", "鐏攨璧拌捣锛岀孩绾㈢伀鐏煍?, "浠婂ぉ閫傚悎鍚冮煩椁愶紝娉¤彍寮€鑳凁煡?,
+  "鍚冧釜瀵垮徃鎷肩洏锛岀簿鑷村張缇庡懗馃崳", "浠婂ぉ閫傚悎鍚冩嘲鍥借彍锛岄吀鐢滃紑鑳凁煡?, "鍗板害鍜栧柋閰嶇儰楗硷紝寮傚煙椋庢儏馃尞",
+  "浠婂ぉ閫傚悎鍚冪墰鑲夐潰锛屾堡娴撹倝棣欚煃?, "鍚冧釜鐐搁浮閰嶅暏閰掞紝蹇箰鍔犲€嶐煃?, "浠婂ぉ閫傚悎鍚冨甯歌彍锛岀畝鍗曞垢绂忦煆?,
+  "璇曡瘯瀛︽牎闄勮繎鏂板紑鐨勫簵锛岃涓嶅畾鏈夋儕鍠滒煄?, "浠婂ぉ閫傚悎鍚冨寘瀛愯眴娴嗭紝缁忓吀鏃╅馃",
+  "浠婂ぉ浼氭湁鎰忔兂涓嶅埌鐨勫皬鎯婂枩鉁?, "淇濇寔濂藉績鎯咃紝濂借繍鑷劧鏉ヰ煃€", "閫傚悎鍜屾湅鍙嬪垎浜揩涔愶紝浼犻€掓鑳介噺馃挅",
+  "浠婂ぉ閫傚悎灏濊瘯鏂颁簨鐗╋紝鍙兘鏈夋柊鍙戠幇馃攳", "瀛︿範鏁堢巼楂橈紝鍔犳补锛侌煋?, "浠婂ぉ閫傚悎杩愬姩涓€涓嬶紝鍑哄嚭姹楁洿鍋ュ悍馃弮",
+  "璁板緱缁欒嚜宸变拱鐐瑰皬闆堕锛屽紑蹇冧竴涓嬸煃?, "浠婂ぉ鍙兘浼氶亣鍒版湁瓒ｇ殑浜烘垨浜嬸煒?, "閫傚悎鏁寸悊鎴块棿锛屽績鎯呬細鍙樺ソ馃Ч",
+  "浠婂ぉ閫傚悎鍚枩娆㈢殑闊充箰鏀炬澗馃幍", "缁欒嚜宸变竴涓井绗戯紝涓€鍒囬兘浼氭洿濂金煒?, "浠婂ぉ閫傚悎鏃╃偣浼戞伅锛屽吇瓒崇簿绁烉煂?,
+  "鍙兘浼氭敹鍒板ソ娑堟伅锛屼繚鎸佹湡寰咅煋?, "浠婂ぉ閫傚悎鍋氳鍒掞紝鏈潵鏇存竻鏅梆煑擄笍", "杩愭皵涓嶉敊锛岄€傚悎鍋氶噸瑕佸喅瀹氣瓙",
+  "浠婂ぉ閫傚悎琛ㄨ揪鎰熻阿锛岃鍏崇郴鏇存俯鏆栤潳锔?, "绌夸欢鍠滄鐨勮。鏈嶏紝鑷俊婊℃弧馃憰", "浠婂ぉ閫傚悎鍠濇澂鍜栧暋锛屾參鎱韩鍙椻槙",
+  "缁欒嚜宸变竴涓皬鐩爣锛屽畬鎴愬悗濂栧姳鑷繁馃幆", "浠婂ぉ閫傚悎鎷嶅紶鐓х墖锛岃褰曠編濂金煋?
+];
+
+const message = ref('鐐瑰嚮鎶界锛岀湅鐪嬩粖澶╁悆浠€涔堣繍鍔縹');
+const cooldown = ref(0);
+let timer = null;
+
+/**
+ * 鎶界锛氶殢鏈烘樉绀轰竴鏉℃鍚戠鏂囷紝骞惰繘鍏?0绉掑喎鍗?
+ */
+function drawFortune() {
+  if (cooldown.value > 0) return;
+  message.value = fortunes[Math.floor(Math.random() * fortunes.length)];
+  cooldown.value = 10;
+
+  timer = setInterval(() => {
+    cooldown.value--;
+    if (cooldown.value <= 0) {
+      clearInterval(timer);
+      cooldown.value = 0;
+    }
+  }, 1000);
+}
+</script>
+
+<style scoped>
+.fortune-box {
+  background: #fff;
+  border: 1px dashed #e0a458;
+  border-radius: 16px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.fortune-box.disabled { cursor: not-allowed; background: #f5f0e8; }
+.title { font-size: 12px; color: #888; }
+.msg { font-size: 15px; margin-top: 4px; font-weight: 600; color: #8a6a4a; }
+.cooldown { font-size: 11px; color: #bbb; margin-top: 4px; }
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\HelloWorld.vue ==========
+
+<script setup>
+import { ref } from 'vue'
+import heroImg from '../assets/hero.png'
+import viteLogo from '../assets/vite.svg'
+import vueLogo from '../assets/vue.svg'
+
+const count = ref(0)
+</script>
+
+<template>
+  <section id="center">
+    <div class="hero">
+      <img :src="heroImg" class="base" width="170" height="179" alt="" />
+      <img :src="vueLogo" class="framework" alt="Vue logo" />
+      <img :src="viteLogo" class="vite" alt="Vite logo" />
+    </div>
+    <div>
+      <h1>Get started</h1>
+      <p>Edit <code>src/App.vue</code> and save to test <code>HMR</code></p>
+    </div>
+    <button type="button" class="counter" @click="count++">
+      Count is {{ count }}
+    </button>
+  </section>
+
+  <div class="ticks"></div>
+
+  <section id="next-steps">
+    <div id="docs">
+      <svg class="icon" role="presentation" aria-hidden="true">
+        <use href="/icons.svg#documentation-icon"></use>
+      </svg>
+      <h2>Documentation</h2>
+      <p>Your questions, answered</p>
+      <ul>
+        <li>
+          <a href="https://vite.dev/" target="_blank">
+            <img class="logo" :src="viteLogo" alt="" />
+            Explore Vite
+          </a>
+        </li>
+        <li>
+          <a href="https://vuejs.org/" target="_blank">
+            <img class="button-icon" :src="vueLogo" alt="" />
+            Learn more
+          </a>
+        </li>
+      </ul>
+    </div>
+    <div id="social">
+      <svg class="icon" role="presentation" aria-hidden="true">
+        <use href="/icons.svg#social-icon"></use>
+      </svg>
+      <h2>Connect with us</h2>
+      <p>Join the Vite community</p>
+      <ul>
+        <li>
+          <a href="https://github.com/vitejs/vite" target="_blank">
+            <svg class="button-icon" role="presentation" aria-hidden="true">
+              <use href="/icons.svg#github-icon"></use>
+            </svg>
+            GitHub
+          </a>
+        </li>
+        <li>
+          <a href="https://chat.vite.dev/" target="_blank">
+            <svg class="button-icon" role="presentation" aria-hidden="true">
+              <use href="/icons.svg#discord-icon"></use>
+            </svg>
+            Discord
+          </a>
+        </li>
+        <li>
+          <a href="https://x.com/vite_js" target="_blank">
+            <svg class="button-icon" role="presentation" aria-hidden="true">
+              <use href="/icons.svg#x-icon"></use>
+            </svg>
+            X.com
+          </a>
+        </li>
+        <li>
+          <a href="https://bsky.app/profile/vite.dev" target="_blank">
+            <svg class="button-icon" role="presentation" aria-hidden="true">
+              <use href="/icons.svg#bluesky-icon"></use>
+            </svg>
+            Bluesky
+          </a>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="ticks"></div>
+  <section id="spacer"></section>
+</template>
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\RandomPicker.vue ==========
+
+<!--
+  RandomPicker.vue
+  闅忔満鎺ㄨ崘缁勪欢锛氱偣鍑绘寜閽殢鏈烘帹鑽愪竴瀹堕鍘咃紝骞舵樉绀烘彁绀鸿涓庣壒鏁?
+-->
+<template>
+  <div class="random-box">
+    <button class="random-btn" @click="pickRandom">馃尭 浠婂ぉ鍚冧粈涔垀</button>
+    <div class="random-result" v-if="current">
+      <div>{{ getEmoji(current) }} {{ current.name }}</div>
+      <div class="sub">{{ current.area }} 路 {{ current.cat1 }} 路 馃挵{{ current.price }}</div>
+    </div>
+    <div class="random-msg">{{ message }}</div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import { getEmoji } from '@/utils/emoji';
+
+const props = defineProps({
+  restaurants: { type: Array, required: true },
+});
+
+let rollCount = 0;
+const current = ref(null);
+const message = ref('');
+
+/**
+ * 闅忔満閫夋嫨涓€瀹舵甯哥姸鎬佺殑椁愬巺
+ */
+function pickRandom() {
+  const eligible = props.restaurants.filter(
+    item => item.status === 'normal' || item.status === 'controversial'
+  );
+  if (!eligible.length) {
+    message.value = '娌℃湁鍙帹鑽愮殑搴楅摵';
+    current.value = null;
+    return;
+  }
+  rollCount++;
+  current.value = eligible[Math.floor(Math.random() * eligible.length)];
+
+  if (rollCount === 1) message.value = '鎴戠煡閬擄紝浣犺偗瀹氫笉鎯冲悆杩欎釜';
+  else if (rollCount === 2) message.value = '杩欎釜鍙兘涔熶笉鎯冲悆瀵逛笉瀵癸紒';
+  else if (rollCount === 3) message.value = '鍢匡紒鍢匡紝鎴戠煡閬撲綘杩樿鍐嶆潵涓€娆?;
+  else if (rollCount >= 4 && rollCount <= 6) message.value = '濂藉彮鈺?鈺?鈺?鈺紝浣犵户缁惂~';
+  else if (rollCount === 7) message.value = '鍐嶆幏锛屽氨瑕佹敹璐逛簡锛?;
+  else if (rollCount === 8) message.value = '灏忕嫾瑕佽浣犵帺鍧忓暒锛?;
+  else if (rollCount === 9) message.value = '涓嶈...銉斤紙鈮р枴鈮︼級銉庡啀缁х画浜嗭紒';
+  else if (rollCount === 10) message.value = '杩樹笉楗垮悧锛熺湡鐨勪笉鑳藉啀鐪嬩簡锛?;
+  else message.value = '鍙戞垜寰俊锛屾垜鍛婅瘔浣犺鍚冧粈涔堭煒?;
+}
+</script>
+
+<style scoped>
+.random-box {
+  background: #111827;
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+}
+.random-btn {
+  background: #f97316;
+  border: none;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 14px 32px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+.random-btn:hover {
+  background: #ea580c;
+  transform: scale(1.03);
+}
+.random-result {
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+.sub {
+  font-size: 13px;
+  color: #d1d5db;
+  margin-top: 4px;
+}
+.random-msg {
+  font-size: 13px;
+  color: #fbbf24;
+  margin-top: 8px;
+  min-height: 20px;
+}
+.random-result { margin-top: 12px; font-size: 19px; font-weight: 700; color: #b96d6d; }
+.sub { font-size: 13px; color: #888; font-weight: 400; margin-top: 4px; }
+.random-msg { font-size: 13px; color: #c96f6f; margin-top: 6px; min-height: 18px; }
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\components\RestaurantCard.vue ==========
+
+<!--
+  RestaurantCard.vue
+  椁愬巺鍗＄墖缁勪欢锛氶粯璁や笉鏄剧ず璇勪环锛岀偣鍑诲悗灞曞紑璇︽儏锛?
+  閬块浄椁愬巺鐐瑰嚮瑙﹀彂鐙肩埅鍔ㄧ敾涓斾笉灞曞紑銆?
+-->
+<template>
+  <div
+    class="card"
+    :class="{ 'avoid': restaurant.status === 'avoid', 'eaten': hasEaten, 'expanded': expanded && restaurant.status !== 'avoid' }"
+    @click="handleCardClick"
+  >
+    <div v-if="restaurant.status === 'avoid'" class="wolf-paw">馃惡</div>
+
+    <div class="card-main">
+      <div class="card-top">
+        <span class="card-name">{{ emoji }} {{ restaurant.name }}</span>
+        <span class="card-stars">{{ stars }}</span>
+      </div>
+      <div class="card-meta">
+        <span>{{ restaurant.area }}</span>
+        <span v-if="subarea">馃搷{{ subarea }}</span>
+        <span>{{ restaurant.cat1 }}{{ restaurant.cat2 ? ' 路 ' + restaurant.cat2 : '' }}</span>
+        <span>馃挵 {{ restaurant.price }}</span>
+      </div>
+      <div class="card-note">{{ restaurant.note }}</div>
+
+      <div v-if="hasEaten" class="card-history">
+        <div class="history-header">馃摉 鍘嗗彶璁板綍 <span>鍏?{{ eatenRecords.length }} 娆?/span></div>
+        <div v-for="(record, index) in eatenRecords" :key="index" class="history-row">
+          <span class="h-date">{{ record.date }}</span>
+          <span class="h-score">{{ formatUserStars(record.score) }}</span>
+          <span class="h-note">{{ record.note || '涓嶅～鍐欏緱鍒颁簡闆跺厓鍑忓厤鍒? }}</span>
+        </div>
+      </div>
+
+      <div v-if="expanded && restaurant.status !== 'avoid'" class="card-detail">
+        <div class="detail-row"><span class="detail-label">馃彔 搴楀悕</span><span>{{ restaurant.name }}</span></div>
+        <div class="detail-row"><span class="detail-label">馃搷 鍦板尯</span><span>{{ restaurant.area }}</span></div>
+        <div v-if="subarea" class="detail-row"><span class="detail-label">馃椇锔?鍖哄煙</span><span>{{ subarea }}</span></div>
+        <div class="detail-row"><span class="detail-label">猸?鎺ㄨ崘</span><span>{{ stars }} ({{ restaurant.rating }}/5)</span></div>
+        <div v-if="restaurant.comment" class="detail-comment">
+          <span class="detail-label">馃挰 璇勪环</span>
+          <span class="comment-text">鈥渰{ restaurant.comment }}鈥?/span>
+        </div>
+        <div v-if="restaurant.note" class="detail-comment">
+          <span class="detail-label">馃嵔锔?鎺ㄨ崘</span>
+          <span class="comment-text">{{ restaurant.note }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <button class="btn-eat" @click.stop="$emit('eat', restaurant)">馃嵔锔?璇勪环</button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref } from 'vue';
+import { getEmoji } from '@/utils/emoji';
+import { getSubarea } from '@/utils/subarea';
+
+const props = defineProps({
+  restaurant: { type: Object, required: true },
+  eatenRecords: { type: Array, default: () => [] }
+});
+defineEmits(['eat']);
+
+const expanded = ref(false);
+const emoji = computed(() => getEmoji(props.restaurant));
+const subarea = computed(() => getSubarea(props.restaurant));
+const hasEaten = computed(() => props.eatenRecords.length > 0);
+const stars = computed(() => {
+  let s = '';
+  for (let i = 0; i < 5; i++) s += (i < props.restaurant.rating) ? '鈽? : '鈽?;
+  return s;
+});
+
+function formatUserStars(score) {
+  if (!score && score !== 0) return '';
+  const starCount = Math.round(score / 2 * 2) / 2;
+  let s = '';
+  for (let i = 1; i <= 5; i++) {
+    if (i <= starCount) s += '鈽?;
+    else if (i - 0.5 === starCount) s += '獐?;
+    else s += '鈽?;
+  }
+  return `${s} (${score}/10)`;
+}
+
+function handleCardClick(event) {
+  if (props.restaurant.status === 'avoid') {
+    const card = event.currentTarget;
+    card.classList.remove('wolf-shake');
+    void card.offsetWidth;
+    card.classList.add('wolf-shake');
+    return;
+  }
+  expanded.value = !expanded.value;
+}
+</script>
+
+<style scoped>
+.card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #f3f4f6;
+  border-radius: 18px;
+  padding: 16px 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.07);
+}
+.card.eaten {
+  border-left: 5px solid #60a5fa;
+  background: #f8fafc;
+}
+.card.avoid {
+  border-left: 5px solid #ef4444;
+  background: #fef2f2;
+  cursor: not-allowed;
+}
+.card.avoid .card-name {
+  color: #ef4444;
+}
+.wolf-paw {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  font-size: 24px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.card.wolf-shake {
+  animation: wolfShake 0.5s ease;
+}
+@keyframes wolfShake {
+  0%,100% { transform: translateX(0); }
+  15% { transform: translateX(-8px); }
+  30% { transform: translateX(8px); }
+  45% { transform: translateX(-6px); }
+  60% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+  90% { transform: translateX(4px); }
+}
+.card-main {
+  flex: 1;
+  min-width: 0;
+}
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.card-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 0.3px;
+}
+.card-stars {
+  color: #f59e0b;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.card-meta span {
+  background: #f3f4f6;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.card-note {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #4b5563;
+}
+.card-history {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f0f9ff;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.history-header {
+  font-weight: 600;
+  color: #0369a1;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid #e0f2fe;
+}
+.history-row:last-child { border-bottom: none; }
+.h-date { font-weight: 600; color: #0369a1; }
+.h-score { color: #f59e0b; }
+.h-note { color: #64748b; font-style: italic; }
+.card-detail {
+  margin-top: 10px;
+  padding: 12px;
+  background: #fafaf9;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  border: 1px solid #f5f5f4;
+  animation: detailIn 0.25s ease;
+}
+@keyframes detailIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.detail-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.detail-label { font-weight: 700; color: #78716c; min-width: 60px; }
+.detail-comment { display: flex; gap: 6px; margin-top: 6px; }
+.comment-text { font-style: italic; color: #57534e; }
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.btn-eat {
+  background: #111827;
+  border: none;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-eat:hover {
+  background: #f97316;
+}
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\composables\useBGM.js ==========
+
+// src/composables/useBGM.js
+import { ref } from 'vue';
+import BGMWorker from '@/workers/bgmWorker.js?worker';
+
+let audioCtxInstance = null;
+let cachedBuffer = null;
+let workerInstance = null;
+let pendingResolve = null;
+
+export function useBGM() {
+  const isPlaying = ref(false);
+  let source = null;
+
+  function ensureAudioContext() {
+    if (!audioCtxInstance) {
+      audioCtxInstance = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioCtxInstance;
+  }
+
+  function ensureWorker() {
+    if (workerInstance) return;
+    workerInstance = new BGMWorker();
+    workerInstance.onmessage = (e) => {
+      const ctx = ensureAudioContext();
+      const floatData = new Float32Array(e.data.audioData);
+      const buffer = ctx.createBuffer(1, floatData.length, ctx.sampleRate);
+      buffer.getChannelData(0).set(floatData);
+      cachedBuffer = buffer;
+      if (pendingResolve) {
+        pendingResolve();
+        pendingResolve = null;
+      }
+    };
+  }
+
+  function preload() {
+    if (cachedBuffer) return;
+    const ctx = ensureAudioContext();
+    ensureWorker();
+    workerInstance.postMessage({ sampleRate: ctx.sampleRate });
+  }
+
+  async function play() {
+    if (isPlaying.value) return;
+    try {
+      const ctx = ensureAudioContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      if (!cachedBuffer) {
+        await new Promise((resolve) => {
+          pendingResolve = resolve;
+          ensureWorker();
+          workerInstance.postMessage({ sampleRate: ctx.sampleRate });
+        });
+      }
+      source = ctx.createBufferSource();
+      source.buffer = cachedBuffer;
+      source.loop = true;
+      source.connect(ctx.destination);
+      source.start();
+      isPlaying.value = true;
+    } catch (e) {
+      console.warn('BGM 鎾斁澶辫触:', e);
+    }
+  }
+
+  function stop() {
+    if (source) {
+      try { source.stop(); } catch (e) {}
+      try { source.disconnect(); } catch (e) {}
+      source = null;
+    }
+    isPlaying.value = false;
+  }
+
+  function toggle() {
+    if (isPlaying.value) {
+      stop();
+    } else {
+      play();
+    }
+  }
+
+  function setupAutoStart() {
+    const handler = (e) => {
+      // 濡傛灉鐢ㄦ埛鐐圭殑鏄?BGM 鎸夐挳锛屼笉鑷姩鎾斁
+      if (e.target && e.target.closest && e.target.closest('.bgm-btn')) {
+        return;
+      }
+      if (!isPlaying.value) {
+        play();
+      }
+      document.removeEventListener('pointerdown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+    document.addEventListener('pointerdown', handler);
+    document.addEventListener('touchstart', handler);
+  }
+
+  return { isPlaying, toggle, preload, setupAutoStart };
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\composables\useEatenRecords.js ==========
+
+// src/composables/useEatenRecords.js
+import { ref, watch } from 'vue';
+
+const STORAGE_KEY = 'zjufood_eaten_records';
+
+/**
+ * 宸插悆璁板綍绠＄悊锛?
+ * 浠?localStorage 璇诲彇锛屼慨鏀瑰悗鑷姩淇濆瓨
+ * records 缁撴瀯锛歿 [椁愬巺鍚峕: [ {date, score, note}, ... ] }
+ */
+export function useEatenRecords() {
+  const records = ref(loadRecords());
+
+  function loadRecords() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  // 娣卞害鐩戝惉锛岃嚜鍔ㄦ寔涔呭寲
+  watch(records, (newVal) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+  }, { deep: true });
+
+  /**
+   * 娣诲姞涓€鏉″凡鍚冭褰?
+   * @param {string} restaurantName 椁愬巺鍚?
+   * @param {{date:string, score:number, note:string}} record 璁板綍瀵硅薄
+   */
+  function addRecord(restaurantName, record) {
+    if (!records.value[restaurantName]) {
+      records.value[restaurantName] = [];
+    }
+    records.value[restaurantName].push(record);
+  }
+
+  /**
+   * 鍒犻櫎鎸囧畾绱㈠紩鐨勮褰?
+   * @param {string} restaurantName 椁愬巺鍚?
+   * @param {number} index 璁板綍绱㈠紩
+   */
+  function deleteRecord(restaurantName, index) {
+    if (!records.value[restaurantName]) return;
+    records.value[restaurantName].splice(index, 1);
+    if (records.value[restaurantName].length === 0) {
+      delete records.value[restaurantName];
+    }
+  }
+
+  return { records, addRecord, deleteRecord };
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\composables\useFilters.js ==========
+
+import { ref, computed } from 'vue';
+import { getSubarea } from '@/utils/subarea';
+import { parsePrice } from '@/utils/price';
+
+/**
+ * 椁愬巺绛涢€変笌鎺掑簭閫昏緫
+ * @param {import('vue').Ref<Array>} restaurantsRef - 椁愬巺鏁版嵁鐨勫搷搴斿紡寮曠敤
+ * @param {import('vue').Ref<string>} currentTab - 褰撳墠 Tab锛坢ain/snack/all锛?
+ * @returns 绛涢€夋潯浠朵笌杩囨护鍚庣殑鍒楄〃
+ */
+export function useFilters(restaurantsRef, currentTab) {
+  const area = ref('鍏ㄩ儴');
+  const subarea = ref('鍏ㄩ儴');
+  const cat = ref('鍏ㄩ儴');
+  const sort = ref('rating');
+  const search = ref('');
+
+  const filtered = computed(() => {
+    let result = restaurantsRef.value.filter(item => {
+      // Tab 杩囨护锛氫富椋熸帓闄ょ敎鍝?鐑樼剻/鍜栧暋锛涜尪鐐瑰彧淇濈暀鐢滃搧/鐑樼剻/鍜栧暋
+      if (currentTab.value === 'main' && item.cat1 === '鐢滃搧/鐑樼剻/鍜栧暋') return false;
+      if (currentTab.value === 'snack' && item.cat1 !== '鐢滃搧/鐑樼剻/鍜栧暋') return false;
+
+      // 鍦板尯杩囨护
+      if (area.value !== '鍏ㄩ儴' && item.area !== area.value) return false;
+
+      // 灏忓尯鍩熻繃婊?
+      if (subarea.value !== '鍏ㄩ儴' && getSubarea(item) !== subarea.value) return false;
+
+      // 鍒嗙被杩囨护
+      if (cat.value !== '鍏ㄩ儴' && item.cat1 !== cat.value) return false;
+
+      // 鎼滅储搴楀悕
+      if (search.value && !item.name.toLowerCase().includes(search.value.toLowerCase())) return false;
+
+      return true;
+    });
+
+    // 鎺掑簭
+    if (sort.value === 'rating') {
+      result.sort((a, b) => b.rating - a.rating);
+    } else if (sort.value === 'priceAsc') {
+      result.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+    } else if (sort.value === 'priceDesc') {
+      result.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
+    }
+
+    return result;
+  });
+
+  return { area, subarea, cat, sort, search, filtered };
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\data\restaurants.js ==========
+
+// src/data/restaurants.js
+import { ref } from 'vue';
+
+/**
+ * 椁愬巺鏁版嵁锛堝搷搴斿紡锛?
+ * 鍒濆涓虹┖鏁扮粍锛岄€氳繃 loadRestaurants() 浠庡悗绔?API 鍔犺浇
+ */
+export const restaurants = ref([]);
+
+/**
+ * 浠庡悗绔?API 鍔ㄦ€佸姞杞介鍘呮暟鎹?
+ */
+export async function loadRestaurants() {
+  try {
+    const response = await fetch('https://ro-co-jo-factory.onrender.com/api/restaurants');    if (!response.ok) throw new Error('缃戠粶鍝嶅簲澶辫触');
+    restaurants.value = await response.json();
+  } catch (error) {
+    console.error('鍔犺浇椁愬巺鏁版嵁澶辫触:', error);
+    restaurants.value = [];
+  }
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\utils\emoji.js ==========
+
+export function getEmoji(item) {
+  const cat1 = item.cat1;
+  if (cat1 === '涓') return '馃ア';
+  if (cat1 === '鐏攨/姹ら攨') return '馃嵅';
+  if (cat1 === '鐑х儰/鐑よ倝') return '馃崠';
+  if (cat1 === '鏃ユ枡') return '馃崳';
+  if (cat1 === '瑗块') return '馃崫';
+  if (cat1 === '闊╅') return '馃珪';
+  if (cat1 === '闈㈤/灏忓悆/蹇') return '馃崪';
+  if (cat1 === '鐢滃搧/鐑樼剻/鍜栧暋') return '馃嵃';
+  if (cat1 === '寮傚浗鏂欑悊') return '馃尞';
+  if (cat1 === '椋熷爞/鍏朵粬' || item.area === '椋熷爞') return '馃彨';
+  return '馃嵔锔?;
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\utils\price.js ==========
+
+/**
+ * 浠庝环鏍煎瓧绗︿覆涓彁鍙栨渶浣庢暟鍊硷紝鐢ㄤ簬鎺掑簭
+ * @param {string} priceStr - 浠锋牸瀛楃涓诧紝濡?"40-60"銆?58鍙屼汉"
+ * @returns {number} 瑙ｆ瀽鍑虹殑鏁板瓧锛屾棤鏁板瓧杩斿洖 99999
+ */
+export function parsePrice(priceStr) {
+  if (!priceStr) return 99999;
+  const nums = priceStr.match(/\d+/g);
+  if (!nums || !nums.length) return 99999;
+  return parseInt(nums[0]);
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\utils\subarea.js ==========
+
+/**
+ * 灏忓尯鍩熸槧灏勮〃锛氭瘡涓湴鍖哄搴旂殑灏忓尯鍩熷垪琛?
+ */
+export const subareaMap = {
+  '鐜夋硥鏍″尯鍛ㄨ竟': [
+    '闈掕姖鍧?,'涓囧璺?,'瑗挎邯璺?,'鍖楅棬','鍗楅棬',
+    '姝ｅぇ闂?,'榛勯緳','鐜夋硥闂ㄥ彛','鐜夋硥鍛ㄨ竟'
+  ],
+  '绱噾娓牎鍖哄懆杈?: [
+    '鍫曡惤琛?,'鍓戞ˉ鍏ぞ','娴欐腐鍥介檯','涓夊潩鍦伴搧绔?,
+    '瀹濇腐鐢熸椿骞垮満','瑗挎邯澶╄','鍩庤タ閾舵嘲'
+  ],
+  '鍏ㄦ澀宸炶寖鍥村強澶栧崠': [],
+  '椋熷爞': []
+};
+
+/**
+ * 浠庨鍘呯殑 note/area 瀛楁涓瘑鍒皬鍖哄煙
+ * @param {Object} item - 椁愬巺瀵硅薄
+ * @returns {string} 灏忓尯鍩熷悕绉帮紝鏃犲尮閰嶈繑鍥炵┖瀛楃涓?
+ */
+export function getSubarea(item) {
+  const keywords = [
+    '鍫曡惤琛?,'鍓戞ˉ鍏ぞ','娴欐腐鍥介檯','涓夊潩鍦伴搧绔?,'瀹濇腐鐢熸椿骞垮満','瑗挎邯澶╄','鍩庤タ閾舵嘲',
+    '闈掕姖鍧?,'涓囧璺?,'瑗挎邯璺?,'鍖楅棬','鍗楅棬','姝ｅぇ闂?,'榛勯緳','鐜夋硥闂ㄥ彛','鐜夋硥鍛ㄨ竟'
+  ];
+  const text = (item.note || '') + ' ' + (item.area || '');
+  for (const kw of keywords) {
+    if (text.includes(kw)) return kw;
+  }
+  return '';
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\workers\bgmWorker.js ==========
+
+// src/workers/bgmWorker.js
+// v50锛氫慨澶?C/D 娈靛拰寮﹀啿绐侊紝C/D 鍏?pianoEcho锛宮usicBox 闊抽噺闄?
+
+self.onmessage = function (e) {
+  const sr = e.data.sampleRate;
+  const audioData = generateBGM(sr);
+  self.postMessage({ audioData: audioData }, [audioData]);
+};
+
+function generateBGM(sr) {
+  const bpm = 96;
+  const beat = 60 / bpm;
+  const barDuration = 4 * beat;
+  const phraseDuration = 3 * barDuration;
+
+  const INTRO_START   = 0;
+  const FIRST_START   = 12;
+  const INTERLUDE     = 42;
+  const SECOND_START  = 52;
+  const BRIDGE_START  = 82;
+  const C_START       = 88;
+  const C_END         = 103;
+  const D_START       = 106;
+  const D_END         = 121;
+  const OUTRO_START   = 124;
+  const TOTAL         = 155;
+
+  const length = Math.floor(sr * TOTAL);
+  const data = new Float32Array(length);
+
+  const F = {
+    C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61,
+    G3: 196.00, A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+    C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+    C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98, A6: 1760.00,
+  };
+
+  // ==================== 闊宠壊 ====================
+
+  function piano(startT, freq, dur, volume, legato) {
+    const s0 = Math.floor(startT * sr);
+    const overlap = 1.2;
+    const s1 = Math.floor((startT + dur * overlap) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    let at = 0.18, vf = 1.0;
+    if (legato === 'veryLegato') { at = 0.45; vf = 0.58; }
+    else if (legato === true) { at = 0.35; vf = 0.70; }
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * at));
+      const d1 = Math.exp(-pos / (sr * 3.5));
+      const d2 = Math.exp(-pos / (sr * 1.4));
+      const d3 = Math.exp(-pos / (sr * 0.4));
+      const wave =
+        d1 * Math.sin(2 * Math.PI * freq * t) +
+        0.04 * d2 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.008 * d3 * Math.sin(2 * Math.PI * freq * 3 * t);
+      const release = Math.min(1, (len - pos) / (sr * 0.7));
+      data[i] += wave * volume * vf * attack * release;
+    }
+  }
+
+  function guitar(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.01));
+      const decay = Math.exp(-pos / (sr * 1.8));
+      const release = Math.min(1, (len - pos) / (sr * 0.5));
+      const env = attack * decay * release;
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.08 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.03 * Math.sin(2 * Math.PI * freq * 3 * t) +
+        0.02 * Math.sin(2 * Math.PI * freq * 4 * t) +
+        0.01 * Math.sin(2 * Math.PI * freq * 5 * t);
+      const body = 0.04 * Math.sin(2 * Math.PI * freq * 0.5 * t);
+      data[i] += (wave + body) * volume * env;
+    }
+  }
+
+  function nylonGuitar(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.008));
+      const decay = Math.exp(-pos / (sr * 2.2));
+      const release = Math.min(1, (len - pos) / (sr * 0.4));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.05 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.02 * Math.sin(2 * Math.PI * freq * 3 * t);
+      data[i] += wave * volume * attack * decay * release;
+    }
+  }
+
+  function guitarFingerpick(startTime, notes, volume) {
+    const pattern = [0, 1, 2, 3, 2, 1, 0, 1];
+    for (let i = 0; i < 8; i++) {
+      const t = startTime + i * 0.5 * beat;
+      guitar(t, notes[pattern[i]], 0.5 * beat * 0.98, volume);
+    }
+  }
+
+  function nylonFingerpick(startTime, notes, volume) {
+    const pattern = [0, 2, 1, 3, 2, 3, 1, 2];
+    for (let i = 0; i < 8; i++) {
+      const t = startTime + i * 0.5 * beat;
+      nylonGuitar(t, notes[pattern[i]], 0.5 * beat * 0.98, volume);
+    }
+    nylonGuitar(startTime + 2 * 0.5 * beat - 0.08, notes[pattern[2]] * 1.122, 0.08, volume * 0.4);
+    nylonGuitar(startTime + 5 * 0.5 * beat - 0.08, notes[pattern[5]] * 1.122, 0.08, volume * 0.4);
+  }
+
+  function stringEnsemble(startT, freq, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const actualDur = dur * 1.8;
+    const s1 = Math.floor((startT + actualDur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.8));
+      const release = Math.min(1, (len - pos) / (sr * 1.2));
+      const env = attack * release;
+      const wave = Math.sin(2 * Math.PI * freq * t);
+      data[i] += wave * volume * env * 0.5;
+    }
+  }
+
+  function cello(startT, freq, dur, volume, detune = 1.0) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.5));
+      const sustain = pos < len * 0.6 ? 1 : (len - pos) / (len * 0.4);
+      const release = Math.min(1, (len - pos) / (sr * 1.8));
+      const env = attack * sustain * release;
+      const f = freq * detune;
+      const wave =
+        Math.sin(2 * Math.PI * f * t) +
+        0.12 * Math.sin(2 * Math.PI * f * 2 * t) +
+        0.03 * Math.sin(2 * Math.PI * f * 3 * t);
+      data[i] += wave * volume * env;
+    }
+  }
+
+  function celloSection(startT, freq, dur, volume) {
+    const extendedDur = dur * 1.5;
+    cello(startT, freq, extendedDur, volume * 0.6, 1.0000);
+  }
+
+  function pizzBass(startT, freq, volume) {
+    const dur = 0.45;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.008));
+      const decay = Math.exp(-pos / (sr * 0.22));
+      const release = Math.min(1, (len - pos) / (sr * 0.15));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.20 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.05 * Math.sin(2 * Math.PI * freq * 3 * t);
+      data[i] += wave * volume * attack * decay * release;
+    }
+  }
+
+  function harpHarmonic(startT, freq, volume) {
+    const dur = 2.8;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.018));
+      const decay = Math.exp(-pos / (sr * 1.5));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.18 * Math.sin(2 * Math.PI * freq * 2 * t) +
+        0.06 * Math.sin(2 * Math.PI * freq * 3 * t) +
+        0.03 * Math.sin(2 * Math.PI * freq * 4 * t);
+      data[i] += wave * volume * attack * decay;
+    }
+  }
+
+  function musicBoxDuo(startT, freq1, freq2, volume) {
+    const dur = 1.6;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.003));
+      const decay = Math.exp(-pos / (sr * 0.75));
+      const wave1 = Math.sin(2 * Math.PI * freq1 * t) + 0.12 * Math.sin(2 * Math.PI * freq1 * 3 * t);
+      const wave2 = Math.sin(2 * Math.PI * freq2 * t) + 0.12 * Math.sin(2 * Math.PI * freq2 * 3 * t);
+      data[i] += (wave1 + 0.6 * wave2) * volume * attack * decay;
+    }
+  }
+
+  function glockenspiel(startT, freq, volume) {
+    const dur = 2.0;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    if (s1 <= s0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.003));
+      const decay = Math.exp(-pos / (sr * 0.95));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.10 * Math.sin(2 * Math.PI * freq * 4 * t) +
+        0.03 * Math.sin(2 * Math.PI * freq * 9.2 * t);
+      data[i] += wave * volume * attack * decay;
+    }
+  }
+
+  function farBell(startT, freq, volume) {
+    const dur = 6.0;
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const pos = i - s0;
+      const attack = Math.min(1, pos / (sr * 0.02));
+      const decay = Math.exp(-pos / (sr * 2.5));
+      const wave =
+        Math.sin(2 * Math.PI * freq * t) +
+        0.5 * Math.sin(2 * Math.PI * freq * 2.76 * t) +
+        0.25 * Math.sin(2 * Math.PI * freq * 5.4 * t);
+      data[i] += wave * volume * attack * decay;
+    }
+  }
+
+  function getGlobalFade(t) {
+    if (t < 5) return 0;
+    else if (t < 10) return ((t - 5) / 5) * 0.08;
+    else if (t < 20) return 0.08 + ((t - 10) / 10) * 0.20;
+    else if (t < 30) return 0.28 - ((t - 20) / 10) * 0.065;
+    else if (t < 42) return 0.215 - ((t - 30) / 12) * 0.005;
+    else if (t < 52) return 0.21 + ((t - 42) / 10) * 0.07;
+    else if (t < 82) return 0.28 + ((t - 52) / 30) * 0.07;
+    else if (t < 88) return 0.35 - ((t - 82) / 6) * 0.04;
+    else if (t < 103) return 0.31 + ((t - 88) / 15) * 0.04;
+    else if (t < 106) return 0.35 - ((t - 103) / 3) * 0.04;
+    else if (t < 121) return 0.31 + ((t - 106) / 15) * 0.04;
+    else if (t < 124) return 0.35 - ((t - 121) / 3) * 0.04;
+    else if (t < 145) return 0.31 - ((t - 124) / 21) * 0.06;
+    else if (t < 152) return 0.25 - ((t - 145) / 7) * 0.20;
+    else return Math.max(0, 0.05 * (TOTAL - t) / 3);
+  }
+
+  function breeze(startT, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+    let lp = 0;
+    let lpFar = 0;
+    const alpha = 0.010;
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const noise = Math.random() * 2 - 1;
+      lp += alpha * (noise - lp);
+      const env =
+        0.50 +
+        0.30 * Math.sin(2 * Math.PI * 0.05 * t) +
+        0.20 * Math.sin(2 * Math.PI * 0.11 * t + 1.1);
+      const globalFade = getGlobalFade(startT + t);
+      lpFar += 0.06 * (lp - lpFar);
+      data[i] += lpFar * env * globalFade * volume * 6;
+    }
+  }
+
+  function oceanWave(startT, dur, volume) {
+    const s0 = Math.floor(startT * sr);
+    const s1 = Math.floor((startT + dur) * sr);
+    const len = s1 - s0;
+    if (len <= 0) return;
+
+    let lpSurge = 0;
+    let lpFall = 0;
+    let lpFar = 0;
+    let wave = { active: false, elapsed: 0, duration: 0, peak: 0, riseRatio: 0 };
+    let nextIn = 1.5;
+
+    for (let i = s0; i < s1; i++) {
+      const t = (i - s0) / sr;
+      const globalFade = getGlobalFade(startT + t);
+
+      const innerWave1 = Math.sin(2 * Math.PI * t / 4.7);
+      const innerWave2 = Math.sin(2 * Math.PI * t / 7.3 + 1.3);
+      const innerWave3 = Math.sin(2 * Math.PI * t / 11.0 + 0.5);
+      const innerWave = 0.55 + 0.22 * innerWave1 + 0.15 * innerWave2 + 0.08 * innerWave3;
+
+      const bigEnv = 0.65 * (0.55 + 0.55 * innerWave);
+
+      if (!wave.active) {
+        nextIn -= 1 / sr;
+        if (nextIn <= 0) {
+          wave.active = true;
+          wave.elapsed = 0;
+          wave.duration = 4.0 + Math.random() * 2.5;
+          wave.peak = 0.5 + Math.random() * 0.3;
+          wave.riseRatio = 0.30 + Math.random() * 0.15;
+        }
+      } else {
+        wave.elapsed += 1 / sr;
+        if (wave.elapsed >= wave.duration) {
+          wave.active = false;
+          nextIn = 1.5 + Math.random() * 2.0;
+        }
+      }
+
+      let surgeAmp = 0, fallAmp = 0;
+      if (wave.active) {
+        const p = wave.elapsed / wave.duration;
+        if (p < wave.riseRatio) {
+          const r = p / wave.riseRatio;
+          surgeAmp = Math.pow(r, 1.6) * wave.peak;
+        } else {
+          const r = (p - wave.riseRatio) / (1 - wave.riseRatio);
+          surgeAmp = Math.pow(1 - r, 1.5) * wave.peak;
+          fallAmp = Math.sin(Math.PI * Math.min(1, r * 1.4)) * wave.peak * 0.85;
+        }
+      }
+
+      const n1 = Math.random() * 2 - 1;
+      const n2 = Math.random() * 2 - 1;
+      lpSurge += 0.006 * (n1 - lpSurge);
+      lpFall += 0.018 * (n2 - lpFall);
+
+      const sample = lpSurge * surgeAmp * 4.5 + lpFall * fallAmp * 3.0;
+      const activity = Math.max(surgeAmp, fallAmp);
+      const env = bigEnv * (0.10 + activity * 0.9);
+
+      lpFar += 0.08 * (sample - lpFar);
+      const farSample = lpFar * 0.7 + sample * 0.3;
+
+      data[i] += farSample * env * globalFade * volume;
+    }
+  }
+
+  // ==================== 鏃嬪緥锛堝叏閮ㄤ簲澹伴煶闃讹細C D E G A锛?===================
+
+  // A1 绗竴涔愬彞锛欵鈫扜鈫扐鈫扜鈫扙锛屾俯鏆栦笂琛屽悗鍥炶惤
+  const phrases = [
+    [
+      [0, 2, F.E4, false], [2, 2, F.G4, false], [4, 2, F.A4, false],
+      [6, 2, F.G4, false], [8, 4, F.E4, true],
+    ],
+    // A1 绗簩涔愬彞锛欸鈫扐鈫扖5鈫扐鈫扜
+    [
+      [0, 2, F.G4, false], [2, 2, F.A4, false], [4, 2, F.C5, false],
+      [6, 2, F.A4, false], [8, 4, F.G4, true],
+    ],
+    // A1 绗笁涔愬彞锛欰鈫扖5鈫扗5鈫扖5鈫扐
+    [
+      [0, 2, F.A4, false], [2, 2, F.C5, false], [4, 2, F.D5, false],
+      [6, 2, F.C5, false], [8, 4, F.A4, true],
+    ],
+    // A1 绗洓涔愬彞锛欸鈫扙鈫扗鈫扙鈫扖锛屽洖钀借В鍐?
+    [
+      [0, 2, F.G4, false], [2, 2, F.E4, false], [4, 2, F.D4, false],
+      [6, 2, F.E4, false], [8, 4, F.C4, true],
+    ],
+  ];
+
+  const phraseChords = [
+    [
+      { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+      { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
+      { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    ],
+    [
+      { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+      { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
+      { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
+    ],
+    [
+      { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
+      { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
+      { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    ],
+    [
+      { root: 174.61, notes: [174.61, F.A3, F.C4, F.F4] },
+      { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
+      { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+    ],
+  ];
+
+  // C 绗笁涔愬彞
+  const cPhrases = [
+    [
+      [0, 2, F.E5, false], [2, 2, F.G5, false], [4, 2, F.A5, false],
+      [6, 2, F.G5, false], [8, 4, F.E5, true],
+    ],
+    [
+      [0, 2, F.A5, false], [2, 2, F.G5, false], [4, 2, F.E5, false],
+      [6, 2, F.D5, false], [8, 4, F.E5, true],
+    ],
+  ];
+  // 銆愪慨澶?1銆慍 娈靛拰寮︼細Am - G - C
+  const cChords = [
+    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
+    { root: F.G3,   notes: [F.G3, F.B3, F.D4, F.G4] },
+    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+  ];
+
+  // D 绗洓涔愬彞
+  const dPhrases = [
+    [
+      [0, 2, F.G5, false], [2, 2, F.E5, false], [4, 2, F.D5, false],
+      [6, 2, F.C5, false], [8, 4, F.A4, true],
+    ],
+    [
+      [0, 2, F.E5, false], [2, 2, F.D5, false], [4, 2, F.C5, false],
+      [6, 2, F.A4, false], [8, 4, F.G4, true],
+    ],
+  ];
+  // 銆愪慨澶?2銆慏 娈靛拰寮︼細Am - Em - C
+  const dChords = [
+    { root: F.A3,   notes: [F.A3, F.C4, F.E4, F.A4] },
+    { root: F.E3,   notes: [F.E3, F.G3, F.B3, F.E4] },
+    { root: 130.81, notes: [F.C4, F.E4, F.G4, F.C5] },
+  ];
+
+  const boxPairs = {
+    0: [F.C6, F.E6, 0.020],
+    1: [F.B5, F.D6, 0.020],
+    2: [F.C6, F.E6, 0.012],
+    3: [F.C6, F.E6, 0.020],
+    4: [F.G5, F.B5, 0.016],
+    5: [F.A5, F.C6, 0.014],
+  };
+
+  oceanWave(0, TOTAL, 0.12);
+  breeze(0, TOTAL, 0.18);
+
+  // ==================== Intro锛? - 12s锛?===================
+  farBell(2.0, F.C3, 0.018);
+
+  glockenspiel(0.6, F.C6, 0.018);
+  glockenspiel(1.4, F.G5, 0.016);
+  glockenspiel(2.3, F.E6, 0.017);
+  glockenspiel(3.1, F.C6, 0.015);
+  glockenspiel(3.9, F.B5, 0.016);
+  glockenspiel(4.6, F.G6, 0.014);
+  glockenspiel(6.0, F.E6, 0.013);
+  glockenspiel(7.2, F.C6, 0.012);
+  glockenspiel(8.5, F.A5, 0.012);
+  glockenspiel(9.8, F.G5, 0.011);
+
+  piano(7.5, F.C5, 1.5 * beat, 0.18, false);
+  piano(9.0, F.G4, 1.5 * beat, 0.17, false);
+  piano(10.5, F.E4, 2 * beat, 0.16, false);
+  piano(11.5, F.C4, 2 * beat, 0.15, false);
+
+  // ==================== 娓叉煋鍑芥暟 ====================
+
+  function renderPhrase(startTime, phraseIndex, config, melodyArr, chordsArr) {
+    const melody = melodyArr || phrases[phraseIndex];
+    const chords = chordsArr || phraseChords[phraseIndex];
+
+    if (!config.silentMelody) {
+      for (const [startBeat, durBeats, freq, legato] of melody) {
+        piano(startTime + startBeat * beat, freq, durBeats * beat * 0.98, 0.26, legato);
+        if (config.pianoEcho) {
+          piano(startTime + (startBeat + 0.5) * beat, freq * 2, durBeats * beat * 0.4, 0.045, false);
+        }
+      }
+    }
+
+    if (config.guitarFinger) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        guitarFingerpick(barStart, chords[b].notes, config.guitarVolume || 0.11);
+      }
+    }
+
+    if (config.nylonFinger) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        nylonFingerpick(barStart, chords[b].notes, config.nylonVolume || 0.07);
+      }
+    }
+
+    if (config.strings) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        for (const note of chords[b].notes) {
+          stringEnsemble(barStart, note, barDuration * 0.95, config.stringsVolume || 0.012);
+        }
+      }
+    }
+
+    if (config.cello) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        const vol = (b === 1) ? 0.35 : 0.55;
+        celloSection(barStart, chords[b].root, barDuration * 0.95, vol);
+      }
+    }
+
+    if (config.pizz) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        const v = config.pizzVolume || 0.08;
+        pizzBass(barStart + 0 * beat, chords[b].notes[1], v);
+        pizzBass(barStart + 2 * beat, chords[b].notes[1], v * 0.85);
+      }
+    }
+
+    if (config.harp) {
+      for (let b = 0; b < 3; b++) {
+        const barStart = startTime + b * barDuration;
+        const c = chords[b];
+        harpHarmonic(barStart + 0.0 * beat, c.notes[0], 0.020);
+        harpHarmonic(barStart + 0.5 * beat, c.notes[1], 0.019);
+        harpHarmonic(barStart + 1.0 * beat, c.notes[2], 0.018);
+        harpHarmonic(barStart + 1.5 * beat, c.notes[3], 0.017);
+        harpHarmonic(barStart + 2.5 * beat, c.notes[2], 0.016);
+        harpHarmonic(barStart + 3.0 * beat, c.notes[1], 0.015);
+        harpHarmonic(barStart + 3.5 * beat, c.notes[0], 0.014);
+      }
+    }
+
+    if (config.musicBox && phraseIndex !== undefined && boxPairs[phraseIndex]) {
+      const [b1, b2, boxVol] = boxPairs[phraseIndex];
+      musicBoxDuo(startTime + 2 * barDuration, b1, b2, boxVol);
+    }
+  }
+
+  // ==================== A1锛?2 - 42s锛?===================
+  renderPhrase(FIRST_START + 0 * phraseDuration, 0, { musicBox: true, nylonFinger: true });
+  renderPhrase(FIRST_START + 1 * phraseDuration, 1, { musicBox: true, nylonFinger: true });
+  renderPhrase(FIRST_START + 2 * phraseDuration, 2, {
+    musicBox: true, nylonFinger: true, strings: true, cello: true,
+  });
+  renderPhrase(FIRST_START + 3 * phraseDuration, 3, {
+    musicBox: true, nylonFinger: true, strings: true, cello: true,
+  });
+
+  // ==================== Interlude锛?2 - 52s锛?===================
+  {
+    const startTime = INTERLUDE;
+    const chords = phraseChords[0];
+    for (let b = 0; b < 3; b++) {
+      const barStart = startTime + b * barDuration;
+      const c = chords[b];
+      harpHarmonic(barStart, c.notes[0], 0.028);
+      harpHarmonic(barStart + 1 * beat, c.notes[1], 0.026);
+      harpHarmonic(barStart + 2 * beat, c.notes[2], 0.024);
+      harpHarmonic(barStart + 3 * beat, c.notes[3], 0.022);
+    }
+    piano(INTERLUDE + 3 * barDuration + 2 * beat, F.C5, 1 * beat, 0.18, false);
+    piano(INTERLUDE + 3 * barDuration + 3 * beat, F.G4, 1 * beat, 0.17, false);
+    piano(INTERLUDE + 3 * barDuration + 4 * beat, F.E4, 1 * beat, 0.16, false);
+    piano(INTERLUDE + 3 * barDuration + 5 * beat, F.G4, 1 * beat, 0.15, false);
+    piano(INTERLUDE + 3 * barDuration + 6 * beat, F.C4, 3 * beat, 0.14, 'veryLegato');
+    glockenspiel(INTERLUDE + 3 * barDuration + 4 * beat, F.E6, 0.010);
+    glockenspiel(INTERLUDE + 3 * barDuration + 5.5 * beat, F.C6, 0.009);
+  }
+
+  // ==================== A2锛?2 - 82s锛?===================
+  renderPhrase(SECOND_START + 0 * phraseDuration, 0, {
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, cello: true,
+    pizz: true, pizzVolume: 0.08,
+    pianoEcho: true,
+  });
+  renderPhrase(SECOND_START + 1 * phraseDuration, 1, {
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, cello: true,
+    pizz: true, pizzVolume: 0.08,
+    pianoEcho: true,
+  });
+  renderPhrase(SECOND_START + 2 * phraseDuration, 2, {
+    guitarFinger: true, guitarVolume: 0.12,
+    musicBox: true, strings: true, cello: true, harp: true,
+    pizz: true, pizzVolume: 0.09,
+    pianoEcho: true,
+  });
+  renderPhrase(SECOND_START + 3 * phraseDuration, 3, {
+    guitarFinger: true, guitarVolume: 0.11,
+    musicBox: true, strings: true, cello: true, harp: true,
+    pizz: true, pizzVolume: 0.08,
+    pianoEcho: true,
+  });
+
+  // ==================== Bridge锛?2 - 88s锛?===================
+  {
+    const t0 = BRIDGE_START;
+    harpHarmonic(t0 + 0.0, F.G4, 0.018);
+    harpHarmonic(t0 + 0.8, F.E4, 0.016);
+    harpHarmonic(t0 + 1.6, F.C4, 0.014);
+    musicBoxDuo(t0 + 2.6, F.E5, F.G5, 0.007);
+    piano(t0 + 3.6, F.C5, 1.5 * beat, 0.14, false);
+    piano(t0 + 4.8, F.E5, 1.5 * beat, 0.13, false);
+    harpHarmonic(t0 + 5.0, F.C5, 0.016);
+  }
+
+  // ==================== C 绗笁涔愬彞锛?8 - 103s锛?===================
+  // 銆愪慨澶?3銆慍 娈靛叧 pianoEcho
+  renderPhrase(C_START + 0 * phraseDuration, 4, {
+    strings: true, stringsVolume: 0.010,
+    cello: true,
+    harp: true,
+    musicBox: true,
+    guitarFinger: true, guitarVolume: 0.08,
+  }, cPhrases[0], cChords);
+
+  renderPhrase(C_START + 1 * phraseDuration, 5, {
+    strings: true, stringsVolume: 0.010,
+    cello: true,
+    harp: true,
+    musicBox: true,
+    guitarFinger: true, guitarVolume: 0.08,
+  }, cPhrases[1], cChords);
+
+  // C 鈫?D 杩囨浮
+  {
+    const t0 = C_END;
+    harpHarmonic(t0 + 0.0, F.E4, 0.020);
+    harpHarmonic(t0 + 1.0, F.G4, 0.018);
+    harpHarmonic(t0 + 2.0, F.A4, 0.016);
+    musicBoxDuo(t0 + 3.0, F.E5, F.G5, 0.007);
+  }
+
+  // ==================== D 绗洓涔愬彞锛?06 - 121s锛?===================
+  // 銆愪慨澶?4銆慏 娈靛叧 pianoEcho
+  renderPhrase(D_START + 0 * phraseDuration, 6, {
+    strings: true, stringsVolume: 0.012,
+    cello: true,
+    harp: true,
+    musicBox: true,
+    pizz: true, pizzVolume: 0.06,
+    guitarFinger: true, guitarVolume: 0.08,
+  }, dPhrases[0], dChords);
+
+  renderPhrase(D_START + 1 * phraseDuration, 6, {
+    strings: true, stringsVolume: 0.012,
+    cello: true,
+    harp: true,
+    musicBox: true,
+    pizz: true, pizzVolume: 0.06,
+    guitarFinger: true, guitarVolume: 0.08,
+  }, dPhrases[1], dChords);
+
+  // D 鈫?Outro 杩囨浮
+  {
+    const t0 = D_END;
+    harpHarmonic(t0 + 0.0, F.G4, 0.018);
+    harpHarmonic(t0 + 1.2, F.E4, 0.016);
+    musicBoxDuo(t0 + 2.5, F.C5, F.E5, 0.007);
+  }
+
+  // ==================== Outro锛?24 - 155s锛?===================
+  {
+    const startTime = OUTRO_START;
+
+    piano(startTime + 0 * beat, F.C5, 1.2 * beat, 0.24, false);
+    piano(startTime + 1 * beat, F.G4, 1.2 * beat, 0.23, false);
+    piano(startTime + 2 * beat, F.E4, 1.2 * beat, 0.22, false);
+    piano(startTime + 3 * beat, F.G4, 1.2 * beat, 0.21, false);
+    piano(startTime + 4 * beat, F.E4, 1.2 * beat, 0.20, false);
+    piano(startTime + 5 * beat, F.G3, 1.2 * beat, 0.19, false);
+    piano(startTime + 6 * beat, F.C4, 32 * beat, 0.18, 'veryLegato');
+
+    piano(startTime + 6.4 * beat, F.E5, 2 * beat, 0.16, false);
+    piano(startTime + 8.8 * beat, F.G4, 2 * beat, 0.15, false);
+    piano(startTime + 11.2 * beat, F.C5, 2 * beat, 0.14, false);
+    piano(startTime + 13.6 * beat, F.A4, 2 * beat, 0.13, false);
+    piano(startTime + 16 * beat, F.G4, 3 * beat, 0.12, false);
+    piano(startTime + 19.2 * beat, F.E4, 4 * beat, 0.11, 'veryLegato');
+
+    guitar(startTime + 1 * beat, F.G4, 2 * beat, 0.08);
+    guitar(startTime + 3 * beat, F.C4, 2 * beat, 0.07);
+    guitar(startTime + 5 * beat, F.E3, 3 * beat, 0.06);
+
+    harpHarmonic(startTime + 22 * beat, F.C5, 0.016);
+    harpHarmonic(startTime + 24 * beat, F.G4, 0.014);
+
+    glockenspiel(startTime + 0.7, F.C6, 0.012);
+    glockenspiel(startTime + 1.5, F.G5, 0.011);
+    glockenspiel(startTime + 2.3, F.E6, 0.010);
+    glockenspiel(startTime + 3.1, F.B5, 0.010);
+    glockenspiel(startTime + 3.9, F.G6, 0.009);
+    glockenspiel(startTime + 4.7, F.C6, 0.008);
+    glockenspiel(startTime + 6.0, F.E6, 0.008);
+    glockenspiel(startTime + 7.5, F.G5, 0.007);
+  }
+
+  // ==================== 褰掍竴鍖?====================
+  let max = 0;
+  for (let i = 0; i < data.length; i++) {
+    const a = Math.abs(data[i]);
+    if (a > max) max = a;
+  }
+  const target = 0.92;
+  if (max > target) {
+    const scale = target / max;
+    for (let i = 0; i < data.length; i++) data[i] *= scale;
+  }
+
+  const fin = Math.floor(sr * 0.05);
+  const fout = Math.floor(sr * 3.5);
+  for (let i = 0; i < fin; i++) data[i] *= i / fin;
+  for (let i = 0; i < fout; i++) data[data.length - 1 - i] *= i / fout;
+
+  return data.buffer;
+}
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\App.vue ==========
+
+<template>
+  <div class="page-wrapper">
+    <AppBackground />
+
+    <div class="container">
+      <header class="header">
+        <h1 class="main-title">馃尭 鑺辩嫾銇帰搴楁寫鎴?馃惡</h1>
+        <p class="subtitle">鑺辫姳鏄笉鏄張涓嶇煡閬撹鍚冧粈涔堝暒~ 璁╁皬鐙奸櫔浣犵湅鐪嬪惂锛?/p>
+      </header>
+
+      <!-- 闅忔満鎺ㄨ崘鍖?-->
+      <section class="hero-card">
+        <RandomPicker v-if="restaurants.value && restaurants.value.length" :restaurants="restaurants.value" />
+      </section>
+
+      <!-- 鍚冭揣绛?-->
+      <FortuneBox />
+
+      <!-- Tab 鍒囨崲 -->
+      <div class="tab-bar">
+        <button :class="{ active: currentTab === 'main' }" @click="switchTab('main')">馃崥 涓婚</button>
+        <button :class="{ active: currentTab === 'snack' }" @click="switchTab('snack')">馃嵃 鑼剁偣</button>
+        <button :class="{ active: currentTab === 'all' }" @click="switchTab('all')">馃寛 鍏ㄩ儴</button>
+      </div>
+
+      <!-- 绛涢€夋爮 -->
+      <FilterBar
+        v-model:area="area"
+        v-model:subarea="subarea"
+        v-model:cat="cat"
+        v-model:sort="sort"
+        v-model:search="search"
+      />
+
+      <!-- 鍔犺浇鐘舵€?/ 閿欒鎻愮ず -->
+      <div v-if="loading" class="status-msg">馃攧 姝ｅ湪鍔犺浇椁愬巺鏁版嵁...</div>
+      <div v-else-if="error" class="status-msg error">
+        鈿狅笍 鍔犺浇澶辫触锛歿{ error }}
+        <button class="retry-btn" @click="loadRestaurants">閲嶈瘯</button>
+      </div>
+
+      <!-- 椁愬巺鍒楄〃 -->
+      <template v-else>
+        <RestaurantCard
+          v-for="item in filteredRestaurants"
+          :key="item.area + item.name"
+          :restaurant="item"
+          :eaten-records="eatenRecords[item.name] || []"
+          @eat="openEatModal"
+        />
+        <div v-if="!filteredRestaurants.length" class="status-msg">娌℃湁鎵惧埌鍖归厤鐨勯鍘?馃槩</div>
+      </template>
+
+      <!-- 鎵嬪姩鍒锋柊 -->
+      <button class="refresh-btn" @click="loadRestaurants" :disabled="loading">馃攧 鍒锋柊鏁版嵁</button>
+    </div>
+
+    <!-- 璇勪环寮圭獥 -->
+    <EatModal
+      v-if="selectedRestaurant"
+      :restaurant="selectedRestaurant"
+      :visible="modalVisible"
+      @close="modalVisible = false"
+      @saved="modalVisible = false"
+    />
+
+    <!-- BGM 鎸夐挳 -->
+    <button
+      class="bgm-btn"
+      :class="{ playing: isBGMPlaying }"
+      @pointerdown.stop
+      @click.stop="toggleBGM"
+    >
+      {{ isBGMPlaying ? '馃幍' : '馃攪' }}
+    </button>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { restaurants, loadRestaurants as fetchRestaurants } from '@/data/restaurants';
+import RestaurantCard from '@/components/RestaurantCard.vue';
+import FilterBar from '@/components/FilterBar.vue';
+import FortuneBox from '@/components/FortuneBox.vue';
+import RandomPicker from '@/components/RandomPicker.vue';
+import EatModal from '@/components/EatModal.vue';
+import AppBackground from '@/components/AppBackground.vue';
+import { useFilters } from '@/composables/useFilters';
+import { useEatenRecords } from '@/composables/useEatenRecords';
+import { useBGM } from '@/composables/useBGM';
+
+const currentTab = ref('all');
+const { records: eatenRecords } = useEatenRecords();
+
+const loading = ref(false);
+const error = ref('');
+
+async function loadRestaurants() {
+  loading.value = true;
+  error.value = '';
+  try {
+    await fetchRestaurants();
+  } catch (e) {
+    error.value = e.message || '鍔犺浇澶辫触';
+  } finally {
+    loading.value = false;
+  }
+}
+
+const { area, subarea, cat, sort, search, filtered } = useFilters(restaurants, currentTab);
+const filteredRestaurants = computed(() => filtered.value);
+
+const modalVisible = ref(false);
+const selectedRestaurant = ref(null);
+
+const { isPlaying: isBGMPlaying, toggle: toggleBGM, preload: preloadBGM, setupAutoStart } = useBGM();
+
+onMounted(() => {
+  loadRestaurants();
+  // 鍚庡彴棰勭敓鎴?BGM
+  preloadBGM();
+  // 鐩戝惉鐢ㄦ埛棣栨浜や簰锛岃嚜鍔ㄥ紑濮嬫挱鏀?  setupAutoStart();
+});
+
+function switchTab(tab) {
+  currentTab.value = tab;
+}
+
+function openEatModal(restaurant) {
+  selectedRestaurant.value = restaurant;
+  modalVisible.value = true;
+}
+</script>
+
+<style scoped>
+.page-wrapper {
+  position: relative;
+  min-height: 100vh;
+  background: #faf9f7;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+.main-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  background: linear-gradient(135deg, #f97316, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin: 0;
+  padding: 4px 0;
+}
+.subtitle {
+  font-size: 15px;
+  color: #6b7280;
+  margin-top: 6px;
+  letter-spacing: 0.3px;
+}
+
+.hero-card {
+  margin-bottom: 14px;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tab-bar button {
+  flex: 1;
+  padding: 11px 6px;
+  border: none;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: all 0.2s;
+}
+.tab-bar button.active {
+  background: #111827;
+  color: #fff;
+  font-weight: 600;
+}
+
+.status-msg {
+  text-align: center;
+  padding: 24px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+.status-msg.error {
+  color: #ef4444;
+}
+.retry-btn {
+  margin-left: 8px;
+  padding: 4px 12px;
+  border: 1px solid #ef4444;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.refresh-btn {
+  display: block;
+  margin: 20px auto 0;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 20px;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bgm-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #111827;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 999;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+.bgm-btn.playing {
+  animation: musicPulse 2s ease-in-out infinite;
+}
+@keyframes musicPulse {
+  0%, 100% { box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+  50% { box-shadow: 0 8px 28px rgba(249,115,22,0.5); }
+}
+</style>
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\main.js ==========
+
+import { createApp } from 'vue'
+import './style.css'
+import App from './App.vue'
+
+createApp(App).mount('#app')
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\src\style.css ==========
+
+:root {
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #fff;
+  --border: #e5e4e7;
+  --code-bg: #f4f3ec;
+  --accent: #aa3bff;
+  --accent-bg: rgba(170, 59, 255, 0.1);
+  --accent-border: rgba(170, 59, 255, 0.5);
+  --social-bg: rgba(244, 243, 236, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 18px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #9ca3af;
+    --text-h: #f3f4f6;
+    --bg: #16171d;
+    --border: #2e303a;
+    --code-bg: #1f2028;
+    --accent: #c084fc;
+    --accent-bg: rgba(192, 132, 252, 0.15);
+    --accent-border: rgba(192, 132, 252, 0.5);
+    --social-bg: rgba(47, 48, 58, 0.5);
+    --shadow:
+      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  }
+
+  #social .button-icon {
+    filter: invert(1) brightness(2);
+  }
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+h1 {
+  font-size: 56px;
+  letter-spacing: -1.68px;
+  margin: 32px 0;
+  @media (max-width: 1024px) {
+    font-size: 36px;
+    margin: 20px 0;
+  }
+}
+h2 {
+  font-size: 24px;
+  line-height: 118%;
+  letter-spacing: -0.24px;
+  margin: 0 0 8px;
+  @media (max-width: 1024px) {
+    font-size: 20px;
+  }
+}
+p {
+  margin: 0;
+}
+
+code,
+.counter {
+  font-family: var(--mono);
+  display: inline-flex;
+  border-radius: 4px;
+  color: var(--text-h);
+}
+
+code {
+  font-size: 15px;
+  line-height: 135%;
+  padding: 4px 8px;
+  background: var(--code-bg);
+}
+
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#app {
+  width: 1126px;
+  max-width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  border-inline: 1px solid var(--border);
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\index.html ==========
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>food-factory</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\package.json ==========
+
+{
+  "name": "food-factory",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.41"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^8.2.2"
+  }
+}
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\README.md ==========
+
+# Vue 3 + Vite
+
+This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+
+Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+
+
+
+========== FILE: C:\Users\hz\Desktop\food-factory\vite.config.js ==========
+
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
+    },
+  },
+})
